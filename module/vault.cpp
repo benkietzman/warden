@@ -202,7 +202,7 @@ int main(int argc, char *argv[])
           }
         }
       }
-      // {{{ add
+      // {{{ add | remove | update
       if (strFunction == "add" || strFunction == "remove" || strFunction == "update")
       {
         ptData = NULL;
@@ -261,7 +261,7 @@ int main(int argc, char *argv[])
         }
       }
       // }}}
-      // {{{ retrieve
+      // {{{ retrieve | retrieveKeys
       else if (strFunction == "retrieve" || strFunction == "retrieveKeys")
       {
         ptData = new Json;

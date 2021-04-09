@@ -1,0 +1,14 @@
+[Unit]
+Description=Warden daemon
+
+[Service]
+Type=simple
+Environment="LD_LIBRARY_PATH=/usr/local/lib"
+ExecStartPre=/bin/cp /usr/local/warden/warden_preload /usr/local/warden/warden
+ExecStart=/usr/local/warden/warden
+Restart=always
+LimitNOFILE=65536
+User=warden
+
+[Install]
+WantedBy=multi-user.target

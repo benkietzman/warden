@@ -1,3 +1,3 @@
 #!/bin/bash
 
-/bin/cp -f $1 /usr/local/password/module/
+/bin/cp -f $1 /usr/local/warden/module/

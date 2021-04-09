@@ -8,7 +8,11 @@
 # email      : ben@kietzman.org
 ###########################################
 
-all: bin/warden
+all: bin/vault bin/warden
+
+bin/vault: ../common/libcommon.a obj/vault.o
+	-if [ ! -d bin ]; then mkdir bin; fi;
+	g++ -o bin/vault obj/vault.o -L../common -lcommon -lb64 -lcrypto -lexpat -lmjson -lnsl -lpthread -lrt -lssl -ltar -lz
 
 bin/warden: ../common/libcommon.a obj/warden.o
 	-if [ ! -d bin ]; then mkdir bin; fi;
@@ -23,13 +27,18 @@ bin/warden: ../common/libcommon.a obj/warden.o
 ../common/configure:
 	cd ../; git clone https://github.com/benkietzman/common.git
 
+obj/vault.o: vault.cpp ../common/Makefile
+	-if [ ! -d obj ]; then mkdir obj; fi;
+	g++ -g -Wall -c vault.cpp -o obj/vault.o -I../common
+
 obj/warden.o: warden.cpp ../common/Makefile
 	-if [ ! -d obj ]; then mkdir obj; fi;
 	g++ -g -Wall -c warden.cpp -o obj/warden.o -I../common
 
-install: bin/warden
+install: bin/vault bin/warden
 	-if [ ! -d /usr/local/warden ]; then mkdir /usr/local/warden; fi;
 	-if [ ! -d /usr/local/warden/module ]; then mkdir /usr/local/warden/module; fi;
+	install --mode=777 bin/vault /usr/local/warden/vault
 	install --mode=777 bin/warden /usr/local/warden/warden_preload
 	if [ ! -f /lib/systemd/system/warden.service ]; then install --mode=644 warden.service /lib/systemd/system/; fi
 

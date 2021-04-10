@@ -608,23 +608,6 @@ int main(int argc, char *argv[])
                           }
                           strBuffer[1].append(ptResponse->json(strJson)+"\n");
                           (*i)->strBuffer[0].clear();
-                          ssMessage.str("");
-                          ssMessage << strPrefix << " [Module:" << (*i)->ptRequest->m["Module"]->v << ",Duration:" << ((*i)->CEndTime - (*i)->CStartTime) << "]:  ";
-                          if ((*i)->ptRequest->m.find("_storage") != (*i)->ptRequest->m.end())
-                          {
-                            delete (*i)->ptRequest->m["_storage"];
-                            (*i)->ptRequest->m.erase("_storage");
-                          }
-                          if (!strError.empty())
-                          {
-                            (*i)->ptRequest->insert("Error", strError);
-                          }
-                          if ((*i)->ptRequest->m.find("Password") != (*i)->ptRequest->m.end())
-                          {
-                            (*i)->ptRequest->insert("Password", "******");
-                          }
-                          ssMessage << (*i)->ptRequest;
-                          gpCentral->log(ssMessage.str());
                           delete (*i)->ptRequest;
                           delete *i;
                           removeList.push_back(i);

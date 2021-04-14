@@ -8,9 +8,6 @@
 # email      : ben@kietzman.org
 ###########################################
 
-#MAKEFLAGS="-j ${C}"
-MAKE_UNAME=`uname -s`
-
 all: bin/vault
 
 bin/vault: ../../common/libcommon.a obj/vault.o bin

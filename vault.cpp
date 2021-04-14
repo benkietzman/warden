@@ -47,13 +47,12 @@ using namespace common;
 int main(int argc, char *argv[])
 {
 
-  if (argc >= 4 && ((string)argv[1] == "import" || (string)argv[1] == "export"))
+  if (argc >= 4 && ((string)argv[1] == "import" || (string)argv[1] == "export" || (string)argv[1] == "remove"))
   {
     string strError;
-    Warden warden(argv[2], strError);
+    Warden warden(argv[3], argv[2], strError);
     if (strError.empty())
     {
-      warden.setApplication(argv[3]);
       if ((string)argv[1] == "import")
       {
         string strLine;
@@ -100,7 +99,7 @@ int main(int argc, char *argv[])
           cerr << "Please profide the JSON input data." << endl;
         }
       }
-      else
+      else if ((string)argv[1] == "export")
       {
         Json *ptJson = new Json;
         if (warden.vaultRetrieve(ptJson, strError))
@@ -130,6 +129,14 @@ int main(int argc, char *argv[])
         }
         delete ptJson;
       }
+      else if (warden.vaultRemove(strError))
+      {
+        cout << "The vault has been removed." << endl;
+      }
+      else
+      {
+        cerr << "Warden::vaultRemove() error:  " << strError << endl;
+      }
     }
     else
     {
@@ -138,7 +145,7 @@ int main(int argc, char *argv[])
   }
   else
   {
-    cerr << "USAGE:  " << argv[0] << " [import/export] [unix socket] [application] [json file | stdin]" << endl;
+    cerr << "USAGE:  " << argv[0] << " [import|export|remove] [unix socket] [application] [file|stdin]" << endl;
   }
 
   return 0;

@@ -114,8 +114,8 @@ int main(int argc, char *argv[])
           {
             if (!out.empty())
             {
-              ptStatus = new Json(out.front());
-              if (ptStatus->m.find("Status") != ptStatus->m.end() && ptStatus->m["Status"] == "okay")
+              Json *ptStatus = new Json(out.front());
+              if (ptStatus->m.find("Status") != ptStatus->m.end() && ptStatus->m["Status"]->v == "okay")
               {
                 bProcessed = true;
                 keys.push_back(strApplication);

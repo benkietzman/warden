@@ -104,7 +104,7 @@ int main(int argc, char *argv[])
         {
           ServiceJunction junction(strError);
           list<string> in, out;
-          Json *ptData = new Json;
+          ptData = new Json;
           junction.setApplication("Warden");
           ptData->insert("Service", "samba");
           ptData->insert("Function", "login");

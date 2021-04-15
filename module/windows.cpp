@@ -71,7 +71,7 @@ int main(int argc, char *argv[])
     // }}}
     if (ptJson->m.find("Function") != ptJson->m.end() && !ptJson->m["Function"]->v.empty())
     {
-      string strApplication, strFunction = ptJson->m["Function"]->v, strPassword, strType, strUser;
+      string strFunction = ptJson->m["Function"]->v, strPassword, strUser;
       if (ptJson->m.find("Password") != ptJson->m.end() && !ptJson->m["Password"]->v.empty())
       {
         strPassword = ptJson->m["Password"]->v;

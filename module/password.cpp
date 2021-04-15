@@ -214,10 +214,11 @@ int main(int argc, char *argv[])
       else if (strFunction == "verify")
       {
         list<string> keys;
+        string strSubError;
         Json *ptData = new Json;
         keys.push_back(strApplication);
         keys.push_back(strUser);
-        if (pStorage->request("retrieve", keys, ptData, strError))
+        if (pStorage->request("retrieve", keys, ptData, strSubError))
         {
           if ((strType.empty() || (ptData->m.find("Type") != ptData->m.end() && ptData->m["Type"]->v == strType)) && ptData->m.find("Password") != ptData->m.end() && ptData->m["Password"]->v == strPassword)
           {

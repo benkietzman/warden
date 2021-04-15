@@ -8,7 +8,10 @@
 # email      : ben@kietzman.org
 ###########################################
 
-all: bin/vault
+all: bin/password bin/vault
+
+bin/password: ../../common/libcommon.a obj/password.o bin
+	g++ -o bin/password obj/password.o -L../../common -lcommon -lb64 -lcrypto -lexpat -lmjson -lpthread -lssl -ltar -lz
 
 bin/vault: ../../common/libcommon.a obj/vault.o bin
 	g++ -o bin/vault obj/vault.o -L../../common -lcommon -lb64 -lcrypto -lexpat -lmjson -lpthread -lssl -ltar -lz
@@ -24,6 +27,9 @@ bin:
 
 ../../common/configure:
 	cd ../../; git clone https://github.com/benkietzman/common.git
+
+obj/password.o: password.cpp obj ../../common/Makefile
+	g++ -g -Wall -c password.cpp -o obj/password.o -I../../common;
 
 obj/vault.o: vault.cpp obj ../../common/Makefile
 	g++ -g -Wall -c vault.cpp -o obj/vault.o -I../../common;

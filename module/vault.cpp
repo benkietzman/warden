@@ -191,7 +191,7 @@ int main(int argc, char *argv[])
     // }}}
     if (ptJson->m.find("Function") != ptJson->m.end() && !ptJson->m["Function"]->v.empty())
     {
-      string strAccount, strApplication, strFunction = ptJson->m["Function"]->v;
+      string strFunction = ptJson->m["Function"]->v;
       if (ptJson->m.find("Keys") != ptJson->m.end())
       {
         for (list<Json *>::iterator i = ptJson->m["Keys"]->l.begin(); i != ptJson->m["Keys"]->l.end(); i++)

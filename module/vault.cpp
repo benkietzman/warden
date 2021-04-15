@@ -76,6 +76,8 @@ int main(int argc, char *argv[])
     if (ptJson->m.find("_storage") != ptJson->m.end())
     {
       pStorage->put(ptJson->m["_storage"]);
+      delete ptJson->m["_storage"];
+      ptJson->m.erase("_storage");
     }
     // }}}
     // {{{ load secret

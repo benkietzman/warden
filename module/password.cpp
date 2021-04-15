@@ -54,6 +54,8 @@ int main(int argc, char *argv[])
     if (ptJson->m.find("_storage") != ptJson->m.end())
     {
       pStorage->put(ptJson->m["_storage"]);
+      delete ptJson->m["_storage"];
+      ptJson->m.erase("_storage");
     }
     // }}}
     if (ptJson->m.find("Function") != ptJson->m.end() && !ptJson->m["Function"]->v.empty())

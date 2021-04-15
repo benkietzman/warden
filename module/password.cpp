@@ -25,7 +25,6 @@
 #include <fstream>
 #include <iostream>
 #include <list>
-#include <mysql/mysql.h>
 #include <sstream>
 #include <string>
 #include <sys/types.h>
@@ -34,18 +33,32 @@ using namespace std;
 #include <Json>
 #include <ServiceJunction>
 #include <Storage>
+#include <StringManip>
+#include <Warden>
 using namespace common;
 // }}}
 // {{{ main()
 int main(int argc, char *argv[])
 {
   bool bProcessed = false, bUpdated = false;
-  string strError, strJson;
+  string strError, strJson, strUnix;
   stringstream ssMessage;
   Json *ptJson;
   Storage *pStorage = new Storage;
   StringManip manip;
 
+  // {{{ command line arguments
+  for (int i = 1; i < argc; i++)
+  {
+    string strArg = argv[i];
+    if (strArg.size() > 7 && strArg.substr(0, 7) == "--unix=")
+    {
+      strUnix = strArg.substr(7, strArg.size() - 7);
+      manip.purgeChar(strUnix, strUnix, "'");
+      manip.purgeChar(strUnix, strUnix, "\"");
+    }
+  }
+  // }}}
   if (getline(cin, strJson))
   {
     string strSecret, strSubError;
@@ -77,8 +90,128 @@ int main(int argc, char *argv[])
       {
         strUser = ptJson->m["User"]->v;
       }
+      // {{{ login
+      if (strFunction == "login")
+      {
+        list<string> keys;
+        string strSubError;
+        Json *ptData = new Json;
+        keys.push_back(strUser);
+        if (pStorage->request("retrieve", keys, ptData, strSubError))
+        {
+          if (ptData->v == strPassword)
+          {
+            bProcessed = true;
+          }
+          else
+          {
+            strError = "Failed authorization.";
+          }
+        }
+        delete ptData;
+        keys.clear();
+        if (!bProcessed)
+        {
+          list<string> subKeys;
+          Json *ptConf = new Json;
+          Warden warden("Central", strUnix, strError);
+          subKeys.push_back("conf");
+          if (warden.vaultRetrieve(subKeys, ptConf, strError))
+          {
+            if (ptConf->m.find("Database") != ptConf->m.end() && !ptConf->m["Database"]->v.empty())
+            {
+              if (ptConf->m.find("Database Password") != ptConf->m.end() && !ptConf->m["Database Password"]->v.empty())
+              {
+                if (ptConf->m.find("Database Server") != ptConf->m.end() && !ptConf->m["Database Server"]->v.empty())
+                {
+                  if (ptConf->m.find("Database User") != ptConf->m.end() && !ptConf->m["Database User"]->v.empty())
+                  {
+                    list<string> in, out;
+                    string strValue;
+                    stringstream ssQuery;
+                    ServiceJunction junction(strError);
+                    StringManip manip;
+                    junction.setApplication("Warden");
+                    ptData = new Json;
+                    ptData->insert("Service", "mysql");
+                    ptData->insert("User", ptConf->m["Database User"]->v);
+                    ptData->insert("Password", ptConf->m["Database Password"]->v);
+                    ptData->insert("Server", ptConf->m["Database Server"]->v);
+                    ptData->insert("Database", ptConf->m["Database"]->v);
+                    ssQuery << "select * from person where userid = '" << manip.escape(strUser, strValue) << "' and `password` = concat('*',upper(sha1(unhex(sha1('" << manip.escape(strPassword, strValue) << "')))))";
+                    ptData->insert("Query", ssQuery.str());
+                    in.push_back(ptData->json(strJson));
+                    delete ptData;
+                    if (junction.request(in, out, strError))
+                    {
+                      if (!out.empty())
+                      {
+                        Json *ptStatus = new Json(out.front());
+                        if (ptStatus->m.find("Status") != ptStatus->m.end() && ptStatus->m["Status"]->v == "okay")
+                        {
+                          if (out.size() > 1)
+                          {
+                            bProcessed = true;
+                            keys.push_back(strUser);
+                            ptData = new Json;
+                            ptData->value(strPassword);
+                            if (pStorage->request("add", keys, ptData, strError))
+                            {
+                              bUpdated = true;
+                            }
+                            delete ptData;
+                            keys.clear();
+                          }
+                          else
+                          {
+                            strError = "Failed authentication.";
+                          }
+                        }
+                        else if (ptStatus->m.find("Error") != ptStatus->m.end() && !ptStatus->m["Error"]->v.empty())
+                        {
+                          strError = ptStatus->m["Error"]->v;
+                        }
+                        else
+                        {
+                          strError = "Encountered an unknown error.";
+                        }
+                        delete ptStatus;
+                      }
+                      else
+                      {
+                        strError = "Failed to receive a response.";
+                      }
+                    }
+                    in.clear();
+                    out.clear();
+                  }
+                  else
+                  {
+                    strError = "Please provide the Database User.";
+                  }
+                }
+                else
+                {
+                  strError = "Please provide the Database Server.";
+                }
+              }
+              else
+              {
+                strError = "Please provide the Database Password.";
+              }
+            }
+            else
+            {
+              strError = "Please provide the Database.";
+            }
+          }
+          delete ptConf;
+          subKeys.clear();
+        }
+      }
+      // }}}
       // {{{ verify
-      if (strFunction == "verify")
+      else if (strFunction == "verify")
       {
         list<string> keys;
         Json *ptData = new Json;
@@ -99,12 +232,12 @@ int main(int argc, char *argv[])
         keys.clear();
         if (!bProcessed)
         {
-          ServiceJunction junction(strError);
           list<string> in, out;
-          Json *ptData = new Json;
+          ServiceJunction junction(strError);
+          junction.setApplication("Warden");
+          ptData = new Json;
           ptData->insert("Service", "password");
           ptData->insert("Function", "verify");
-          ptData->insert("reqApp", "Warden(password)");
           ptData->insert("Application", strApplication);
           ptData->insert("User", strUser);
           ptData->insert("Password", strPassword);
@@ -154,7 +287,7 @@ int main(int argc, char *argv[])
       // {{{ invalid
       else
       {
-        strError = "Please provide a valid Function:  verify.";
+        strError = "Please provide a valid Function:  login, verify.";
       }
       // }}}
     }

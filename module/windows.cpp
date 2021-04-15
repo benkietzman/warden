@@ -25,7 +25,6 @@
 #include <fstream>
 #include <iostream>
 #include <list>
-#include <mysql/mysql.h>
 #include <sstream>
 #include <string>
 #include <sys/types.h>
@@ -105,9 +104,9 @@ int main(int argc, char *argv[])
           ServiceJunction junction(strError);
           list<string> in, out;
           Json *ptData = new Json;
+          junction.setApplication("Warden");
           ptData->insert("Service", "samba");
           ptData->insert("Function", "login");
-          ptData->insert("reqApp", "Warden(windows)");
           ptData->insert("User", strUser);
           ptData->insert("Password", strPassword);
           ptData->insert("Domain", strDomain);

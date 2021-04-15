@@ -8,13 +8,16 @@
 # email      : ben@kietzman.org
 ###########################################
 
-all: bin/password bin/vault
+all: bin/password bin/vault bin/windows
 
 bin/password: ../../common/libcommon.a obj/password.o bin
 	g++ -o bin/password obj/password.o -L../../common -lcommon -lb64 -lcrypto -lexpat -lmjson -lpthread -lssl -ltar -lz
 
 bin/vault: ../../common/libcommon.a obj/vault.o bin
 	g++ -o bin/vault obj/vault.o -L../../common -lcommon -lb64 -lcrypto -lexpat -lmjson -lpthread -lssl -ltar -lz
+
+bin/windows: ../../common/libcommon.a obj/windows.o bin
+	g++ -o bin/windows obj/windows.o -L../../common -lcommon -lb64 -lcrypto -lexpat -lmjson -lpthread -lssl -ltar -lz
 
 bin:
 	if [ ! -d bin ]; then mkdir bin; fi;
@@ -33,6 +36,9 @@ obj/password.o: password.cpp obj ../../common/Makefile
 
 obj/vault.o: vault.cpp obj ../../common/Makefile
 	g++ -g -Wall -c vault.cpp -o obj/vault.o -I../../common;
+
+obj/windows.o: windows.cpp obj ../../common/Makefile
+	g++ -g -Wall -c windows.cpp -o obj/windows.o -I../../common;
 
 obj:
 	if [ ! -d obj ]; then mkdir obj; fi;

@@ -1,9 +1,9 @@
 // vim600: fdm=marker
 /* -*- c++ -*- */
 ///////////////////////////////////////////
-// Password
+// Windows
 // -------------------------------------
-// file       : password.cpp
+// file       : windows.cpp
 // author     : Ben Kietzman
 // begin      : 2021-04-15
 // copyright  : kietzman.org
@@ -40,12 +40,24 @@ using namespace common;
 int main(int argc, char *argv[])
 {
   bool bProcessed = false, bUpdated = false;
-  string strError, strJson;
+  string strDomain, strError, strJson;
   stringstream ssMessage;
   Json *ptJson;
   Storage *pStorage = new Storage;
   StringManip manip;
 
+  // {{{ command line arguments
+  for (int i = 1; i < argc; i++)
+  {
+    string strArg = argv[i];
+    if (strArg.size() > 9 && strArg.substr(0, 9) == "--domain=")
+    {
+      strDomain = strArg.substr(9, strArg.size() - 9);
+      manip.purgeChar(strDomain, strDomain, "'");
+      manip.purgeChar(strDomain, strDomain, "\"");
+    }
+  } 
+  // }}}
   if (getline(cin, strJson))
   {
     string strSecret, strSubError;
@@ -61,32 +73,23 @@ int main(int argc, char *argv[])
     if (ptJson->m.find("Function") != ptJson->m.end() && !ptJson->m["Function"]->v.empty())
     {
       string strApplication, strFunction = ptJson->m["Function"]->v, strPassword, strType, strUser;
-      if (ptJson->m.find("Application") != ptJson->m.end() && !ptJson->m["Application"]->v.empty())
-      {
-        strApplication = ptJson->m["Application"]->v;
-      }
       if (ptJson->m.find("Password") != ptJson->m.end() && !ptJson->m["Password"]->v.empty())
       {
         strPassword = ptJson->m["Password"]->v;
-      }
-      if (ptJson->m.find("Type") != ptJson->m.end() && !ptJson->m["Type"]->v.empty())
-      {
-        strType = ptJson->m["Type"]->v;
       }
       if (ptJson->m.find("User") != ptJson->m.end() && !ptJson->m["User"]->v.empty())
       {
         strUser = ptJson->m["User"]->v;
       }
-      // {{{ verify
-      if (strFunction == "verify")
+      // {{{ login
+      if (strFunction == "login")
       {
         list<string> keys;
         Json *ptData = new Json;
-        keys.push_back(strApplication);
         keys.push_back(strUser);
         if (pStorage->request("retrieve", keys, ptData, strError))
         {
-          if ((strType.empty() || (ptData->m.find("Type") != ptData->m.end() && ptData->m["Type"]->v == strType)) && ptData->m.find("Password") != ptData->m.end() && ptData->m["Password"]->v == strPassword)
+          if (ptData->v == strPassword)
           {
             bProcessed = true;
           }
@@ -102,13 +105,12 @@ int main(int argc, char *argv[])
           ServiceJunction junction(strError);
           list<string> in, out;
           Json *ptData = new Json;
-          ptData->insert("Service", "password");
-          ptData->insert("Function", "verify");
-          ptData->insert("reqApp", "Warden(password)");
-          ptData->insert("Application", strApplication);
+          ptData->insert("Service", "samba");
+          ptData->insert("Function", "login");
+          ptData->insert("reqApp", "Warden(windows)");
           ptData->insert("User", strUser);
           ptData->insert("Password", strPassword);
-          ptData->insert("Type", strType);
+          ptData->insert("Domain", strDomain);
           in.push_back(ptData->json(strJson));
           delete ptData;
           if (junction.request(in, out, strError))
@@ -119,11 +121,9 @@ int main(int argc, char *argv[])
               if (ptStatus->m.find("Status") != ptStatus->m.end() && ptStatus->m["Status"]->v == "okay")
               {
                 bProcessed = true;
-                keys.push_back(strApplication);
                 keys.push_back(strUser);
                 ptData = new Json;
-                ptData->insert("Type", strType);
-                ptData->insert("Password", strPassword);
+                ptData->value(strPassword);
                 if (pStorage->request("add", keys, ptData, strError))
                 {
                   bUpdated = true;
@@ -154,7 +154,7 @@ int main(int argc, char *argv[])
       // {{{ invalid
       else
       {
-        strError = "Please provide a valid Function:  verify.";
+        strError = "Please provide a valid Function:  login.";
       }
       // }}}
     }

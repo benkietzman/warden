@@ -89,12 +89,9 @@ int main(int argc, char *argv[])
         strUser = ptJson->m["User"]->v;
       }
       keys.push_back(strUser);
-      if (pStorage->retrieve(keys, ptData, strSubError))
+      if (pStorage->retrieve(keys, ptData, strSubError) && ptData->v == strPassword)
       {
-        if (ptData->v == strPassword)
-        {
-          bProcessed = true;
-        }
+        bProcessed = true;
       }
       delete ptData;
       keys.clear();

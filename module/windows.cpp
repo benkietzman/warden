@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
         string strSubError;
         Json *ptData = new Json;
         keys.push_back(strUser);
-        if (pStorage->request("retrieve", keys, ptData, strSubError))
+        if (pStorage->retrieve(keys, ptData, strSubError))
         {
           if (ptData->v == strPassword)
           {
@@ -124,7 +124,7 @@ int main(int argc, char *argv[])
                 keys.push_back(strUser);
                 ptData = new Json;
                 ptData->value(strPassword);
-                if (pStorage->request("add", keys, ptData, strError))
+                if (pStorage->add(keys, ptData, strError))
                 {
                   bUpdated = true;
                 }

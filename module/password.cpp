@@ -97,7 +97,7 @@ int main(int argc, char *argv[])
         string strSubError;
         Json *ptData = new Json;
         keys.push_back(strUser);
-        if (pStorage->request("retrieve", keys, ptData, strSubError))
+        if (pStorage->retrieve(keys, ptData, strSubError))
         {
           if (ptData->v == strPassword)
           {
@@ -155,7 +155,7 @@ int main(int argc, char *argv[])
                             keys.push_back(strUser);
                             ptData = new Json;
                             ptData->value(strPassword);
-                            if (pStorage->request("add", keys, ptData, strError))
+                            if (pStorage->add(keys, ptData, strError))
                             {
                               bUpdated = true;
                             }
@@ -218,7 +218,7 @@ int main(int argc, char *argv[])
         Json *ptData = new Json;
         keys.push_back(strApplication);
         keys.push_back(strUser);
-        if (pStorage->request("retrieve", keys, ptData, strSubError))
+        if (pStorage->retrieve(keys, ptData, strSubError))
         {
           if ((strType.empty() || (ptData->m.find("Type") != ptData->m.end() && ptData->m["Type"]->v == strType)) && ptData->m.find("Password") != ptData->m.end() && ptData->m["Password"]->v == strPassword)
           {
@@ -258,7 +258,7 @@ int main(int argc, char *argv[])
                 ptData = new Json;
                 ptData->insert("Type", strType);
                 ptData->insert("Password", strPassword);
-                if (pStorage->request("add", keys, ptData, strError))
+                if (pStorage->add(keys, ptData, strError))
                 {
                   bUpdated = true;
                 }

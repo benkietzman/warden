@@ -83,7 +83,7 @@ int main(int argc, char *argv[])
     // {{{ load secret
     ptData = new Json;
     keys.push_back("_secret");
-    if (pStorage->request("retrieve", keys, ptData, strSubError) && !ptData->v.empty())
+    if (pStorage->retrieve(keys, ptData, strSubError) && !ptData->v.empty())
     {
       strSecret = ptData->v;
     }
@@ -109,7 +109,7 @@ int main(int argc, char *argv[])
     // {{{ load modified
     ptData = new Json;
     keys.push_back("_modified");
-    if (pStorage->request("retrieve", keys, ptData, strSubError))
+    if (pStorage->retrieve(keys, ptData, strSubError))
     {
       stringstream ssModified(ptData->v);
       struct stat tStat;

@@ -95,14 +95,10 @@ int main(int argc, char *argv[])
         {
           bProcessed = true;
         }
-        else
-        {
-          strError = "Failed authorization.";
-        }
       }
       delete ptData;
       keys.clear();
-      if (!bProcessed && (warden.passwordLogin(strUser, strPassword, strError) || warden.passwordVerify(strUser, strPassword, strType, strError) || warden.windowsLogin(strUser, strPassword, strError)))
+      if (!bProcessed && (warden.passwordLogin(strUser, strPassword, strSubError) || warden.passwordVerify(strUser, strPassword, strType, strSubError) || warden.windowsLogin(strUser, strPassword, strSubError)))
       {
         bProcessed = true;
         keys.push_back(strUser);
@@ -114,6 +110,10 @@ int main(int argc, char *argv[])
         }
         delete ptData;
         keys.clear();
+      }
+      else
+      {
+        strError = strSubError;
       }
     }
     else

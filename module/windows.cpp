@@ -93,10 +93,6 @@ int main(int argc, char *argv[])
           {
             bProcessed = true;
           }
-          else
-          {
-            strError = "Failed authorization.";
-          }
         }
         delete ptData;
         keys.clear();

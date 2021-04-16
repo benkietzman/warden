@@ -82,6 +82,10 @@ using namespace common;
 * \brief Contains the start path.
 */
 #define START "/.start"
+/*! \def STORAGE_SOCKET
+* \brief Contains the unix socket path.
+*/
+#define STORAGE_SOCKET "/storage"
 /*! \def UNIX_SOCKET
 * \brief Contains the unix socket path.
 */
@@ -113,7 +117,6 @@ static string gstrApplication = "Warden"; //!< Global application name.
 static string gstrData = "/data/warden"; //!< Global data path.
 static string gstrEmail; //!< Global notification email address.
 static Central *gpCentral = NULL; //!< Contains the Central class.
-static Storage *gpStorage = NULL; //!< Contains the Storage class.
 static Syslog *gpSyslog = NULL; //!< Contains the Syslog class.
 // }}}
 // {{{ prototypes
@@ -122,6 +125,14 @@ static Syslog *gpSyslog = NULL; //!< Contains the Syslog class.
 * \param nSignal Contains the caught signal.
 */
 void sighandle(const int nSignal);
+/*! \fn bool storage(const string strAction, list<string> keys, Json *ptData, string &strError)
+* \brief Interfaces with storage.
+* \param strAction Contains the action.
+* \param keys Contains the keys.
+* \param ptData Contains the data.
+* \param strError Returns an error.
+*/
+bool storage(const string strAction, list<string> keys, Json *ptData, string &strError);
 // }}}
 // {{{ main()
 /*! \fn int main(int argc, char *argv[])
@@ -201,7 +212,7 @@ int main(int argc, char *argv[])
   {
     if (!gbShutdown)
     {
-      int fdUnix = -1, nReturn;
+      pid_t nStoragePid;
       if (gbDaemon)
       {
         gpCentral->utility()->daemonize();
@@ -215,412 +226,615 @@ int main(int argc, char *argv[])
       outPid.close();
       ofstream outStart((gstrData + START).c_str());
       outStart.close();
-      gpCentral->file()->remove((gstrData + UNIX_SOCKET).c_str());
-      if ((fdUnix = socket(AF_UNIX, SOCK_STREAM, 0)) >= 0)
+      // {{{ process
+      if ((nStoragePid = fork()) > 0)
       {
-        sockaddr_un addr;
-        ssMessage.str("");
-        ssMessage << strPrefix << "->socket():  Created the socket.";
-        gpCentral->log(ssMessage.str());
-        memset(&addr, 0, sizeof(sockaddr_un));
-        addr.sun_family = AF_UNIX;
-        strncpy(addr.sun_path, (gstrData + UNIX_SOCKET).c_str(), sizeof(addr.sun_path) - 1);
-        if (bind(fdUnix, (sockaddr *)&addr, sizeof(sockaddr_un)) == 0)
+        int fdUnix = -1, nReturn;
+        gpCentral->file()->remove((gstrData + UNIX_SOCKET).c_str());
+        if ((fdUnix = socket(AF_UNIX, SOCK_STREAM, 0)) >= 0)
         {
+          sockaddr_un addr;
           ssMessage.str("");
-          ssMessage << strPrefix << "->bind():  Bound to the socket.";
+          ssMessage << strPrefix << "->socket():  Created the socket.";
           gpCentral->log(ssMessage.str());
-          chmod((gstrData + UNIX_SOCKET).c_str(), 00770);
-          if (listen(fdUnix, SOMAXCONN) == 0)
+          memset(&addr, 0, sizeof(sockaddr_un));
+          addr.sun_family = AF_UNIX;
+          strncpy(addr.sun_path, (gstrData + UNIX_SOCKET).c_str(), sizeof(addr.sun_path) - 1);
+          if (bind(fdUnix, (sockaddr *)&addr, sizeof(sockaddr_un)) == 0)
           {
-            int fdData;
-            string strSystem;
-            sockaddr_un cli_addr;
-            socklen_t clilen = sizeof(cli_addr);
-            time_t ulModifyTime = 0;
-            map<string, map<string, string> > module;
             ssMessage.str("");
-            ssMessage << strPrefix << "->listen():  Listening to the socket.";
+            ssMessage << strPrefix << "->bind():  Bound to the socket.";
             gpCentral->log(ssMessage.str());
-            clilen = sizeof(cli_addr);
-            gpStorage = new Storage;
-            while (!gbShutdown && (fdData = accept(fdUnix, (struct sockaddr *)&cli_addr, &clilen)) >= 0)
+            chmod((gstrData + UNIX_SOCKET).c_str(), 00770);
+            if (listen(fdUnix, SOMAXCONN) == 0)
             {
-              if (gpCentral->file()->fileExist(gstrData + "/.shutdown"))
+              int fdData;
+              string strSystem;
+              sockaddr_un cli_addr;
+              socklen_t clilen = sizeof(cli_addr);
+              time_t ulModifyTime = 0;
+              map<string, map<string, string> > module;
+              ssMessage.str("");
+              ssMessage << strPrefix << "->listen():  Listening to the socket.";
+              gpCentral->log(ssMessage.str());
+              clilen = sizeof(cli_addr);
+              while (!gbShutdown && (fdData = accept(fdUnix, (struct sockaddr *)&cli_addr, &clilen)) >= 0)
               {
-                gpCentral->file()->remove(gstrData + "/.shutdown");
-                gbShutdown = true;
-              }
-              // {{{ reload module configuration
-              if (!gpCentral->file()->fileExist(gstrData + (string)"/.lock"))
-              {
-                struct stat tStat;
-                if (stat((gstrData + MODULE_CONFIG).c_str(), &tStat) == 0)
+                if (gpCentral->file()->fileExist(gstrData + "/.shutdown"))
                 {
-                  if (ulModifyTime != tStat.st_mtime)
+                  gpCentral->file()->remove(gstrData + "/.shutdown");
+                  gbShutdown = true;
+                }
+                // {{{ reload module configuration
+                if (!gpCentral->file()->fileExist(gstrData + (string)"/.lock"))
+                {
+                  struct stat tStat;
+                  if (stat((gstrData + MODULE_CONFIG).c_str(), &tStat) == 0)
                   {
-                    ifstream inFile;
-                    ssMessage.str("");
-                    ssMessage << strPrefix << ":  " << ((ulModifyTime == 0)?"L":"Rel") << "oaded the configuration file.";
-                    gpCentral->log(ssMessage.str());
-                    inFile.open((gstrData + MODULE_CONFIG).c_str());
-                    if (inFile.good())
+                    if (ulModifyTime != tStat.st_mtime)
                     {
-                      string strConf;
-                      ulModifyTime = tStat.st_mtime;
-                      module.clear();
-                      while (getline(inFile, strConf).good())
+                      ifstream inFile;
+                      ssMessage.str("");
+                      ssMessage << strPrefix << ":  " << ((ulModifyTime == 0)?"L":"Rel") << "oaded the configuration file.";
+                      gpCentral->log(ssMessage.str());
+                      inFile.open((gstrData + MODULE_CONFIG).c_str());
+                      if (inFile.good())
                       {
-                        map<string, string> moduleMap;
-                        Json *ptJson = new Json(strConf);
-                        ptJson->flatten(moduleMap, true, false);
-                        delete ptJson;
-                        if (!moduleMap.empty())
+                        string strConf;
+                        ulModifyTime = tStat.st_mtime;
+                        module.clear();
+                        while (getline(inFile, strConf).good())
                         {
-                          if (moduleMap.find("Module") != moduleMap.end() && !moduleMap["Module"].empty())
+                          map<string, string> moduleMap;
+                          Json *ptJson = new Json(strConf);
+                          ptJson->flatten(moduleMap, true, false);
+                          delete ptJson;
+                          if (!moduleMap.empty())
                           {
-                            if (moduleMap.find("Command") != moduleMap.end() && !moduleMap["Command"].empty())
+                            if (moduleMap.find("Module") != moduleMap.end() && !moduleMap["Module"].empty())
                             {
-                              module[moduleMap["Module"]] = moduleMap;
+                              if (moduleMap.find("Command") != moduleMap.end() && !moduleMap["Command"].empty())
+                              {
+                                module[moduleMap["Module"]] = moduleMap;
+                              }
+                              else
+                              {
+                                ssMessage.str("");
+                                ssMessage << strPrefix << " [" << gstrData << MODULE_CONFIG << "]:  Invalid module configuration.  Please provide the Command. --- " << strConf;
+                                gpCentral->notify(ssMessage.str());
+                              }
                             }
                             else
                             {
                               ssMessage.str("");
-                              ssMessage << strPrefix << " [" << gstrData << MODULE_CONFIG << "]:  Invalid module configuration.  Please provide the Command. --- " << strConf;
+                              ssMessage << strPrefix << " [" << gstrData << MODULE_CONFIG << "]:  Invalid module configuration.  Please provide the Module. --- " << strConf;
                               gpCentral->notify(ssMessage.str());
                             }
                           }
                           else
                           {
                             ssMessage.str("");
-                            ssMessage << strPrefix << " [" << gstrData << MODULE_CONFIG << "]:  Invalid module configuration.  Please provide the Module. --- " << strConf;
+                            ssMessage << strPrefix << " [" << gstrData << MODULE_CONFIG << "]:  Invalid JSON formatting in module configuration. --- " << strConf;
                             gpCentral->notify(ssMessage.str());
                           }
+                          moduleMap.clear();
                         }
-                        else
-                        {
-                          ssMessage.str("");
-                          ssMessage << strPrefix << " [" << gstrData << MODULE_CONFIG << "]:  Invalid JSON formatting in module configuration. --- " << strConf;
-                          gpCentral->notify(ssMessage.str());
-                        }
-                        moduleMap.clear();
                       }
-                    }
-                    else
-                    {
-                      ssMessage.str("");
-                      ssMessage << strPrefix << " [" << gstrData << MODULE_CONFIG << "]:  Unable to open module configuration for reading.";
-                      gpCentral->alert(ssMessage.str());
-                    }
-                    inFile.close();
-                  }
-                }
-                else
-                {
-                  ssMessage.str("");
-                  ssMessage << strPrefix << " [" << gstrData << MODULE_CONFIG << "]:  Unable to locate module configuration.";
-                  gpCentral->alert(ssMessage.str());
-                }
-              }
-              // }}}
-              if (fork() == 0)
-              {
-                bool bExit = false;
-                char szBuffer[65536];
-                list<connection *> queue;
-                pollfd *fds;
-                size_t unPosition, unfdSize;
-                string strBuffer[2];
-                while (!bExit)
-                {
-                  fds = new pollfd[(queue.size() * 2) + 1];
-                  unfdSize = 0;
-                  fds[unfdSize].fd = fdData;
-                  fds[unfdSize].events = POLLIN;
-                  if (!strBuffer[1].empty())
-                  {
-                    fds[unfdSize].events |= POLLOUT;
-                  }
-                  unfdSize++;
-                  for (list<connection *>::iterator i = queue.begin(); i != queue.end(); i++)
-                  {
-                    fds[unfdSize].fd = (*i)->readpipe;
-                    fds[unfdSize].events = POLLIN;
-                    unfdSize++;
-                    fds[unfdSize].fd = -1;
-                    if (!(*i)->strBuffer[1].empty())
-                    {
-                      fds[unfdSize].fd = (*i)->writepipe;
-                      fds[unfdSize].events = POLLOUT;
-                    }
-                    unfdSize++;
-                  }
-                  if ((nReturn = poll(fds, unfdSize, 2000)) > 0)
-                  {
-                    for (size_t unfdIndex = 0; unfdIndex < unfdSize; unfdIndex++)
-                    {
-                      list<list<connection *>::iterator> removeList;
-                      // {{{ client socket
-                      if (fds[unfdIndex].fd == fdData)
+                      else
                       {
-                        // {{{ read
-                        if (fds[unfdIndex].revents & POLLIN)
+                        ssMessage.str("");
+                        ssMessage << strPrefix << " [" << gstrData << MODULE_CONFIG << "]:  Unable to open module configuration for reading.";
+                        gpCentral->alert(ssMessage.str());
+                      }
+                      inFile.close();
+                    }
+                  }
+                  else
+                  {
+                    ssMessage.str("");
+                    ssMessage << strPrefix << " [" << gstrData << MODULE_CONFIG << "]:  Unable to locate module configuration.";
+                    gpCentral->alert(ssMessage.str());
+                  }
+                }
+                // }}}
+                if (fork() == 0)
+                {
+                  bool bExit = false;
+                  char szBuffer[65536];
+                  list<connection *> queue;
+                  pollfd *fds;
+                  size_t unPosition, unfdSize;
+                  string strBuffer[2];
+                  while (!bExit)
+                  {
+                    fds = new pollfd[(queue.size() * 2) + 1];
+                    unfdSize = 0;
+                    fds[unfdSize].fd = fdData;
+                    fds[unfdSize].events = POLLIN;
+                    if (!strBuffer[1].empty())
+                    {
+                      fds[unfdSize].events |= POLLOUT;
+                    }
+                    unfdSize++;
+                    for (list<connection *>::iterator i = queue.begin(); i != queue.end(); i++)
+                    {
+                      fds[unfdSize].fd = (*i)->readpipe;
+                      fds[unfdSize].events = POLLIN;
+                      unfdSize++;
+                      fds[unfdSize].fd = -1;
+                      if (!(*i)->strBuffer[1].empty())
+                      {
+                        fds[unfdSize].fd = (*i)->writepipe;
+                        fds[unfdSize].events = POLLOUT;
+                      }
+                      unfdSize++;
+                    }
+                    if ((nReturn = poll(fds, unfdSize, 2000)) > 0)
+                    {
+                      for (size_t unfdIndex = 0; unfdIndex < unfdSize; unfdIndex++)
+                      {
+                        list<list<connection *>::iterator> removeList;
+                        // {{{ client socket
+                        if (fds[unfdIndex].fd == fdData)
                         {
-                          if ((nReturn = read(fdData, szBuffer, 65536)) > 0)
+                          // {{{ read
+                          if (fds[unfdIndex].revents & POLLIN)
                           {
-                            strBuffer[0].append(szBuffer, nReturn);
-                            while ((unPosition = strBuffer[0].find("\n")) != string::npos)
+                            if ((nReturn = read(fdData, szBuffer, 65536)) > 0)
                             {
-                              string strError;
-                              Json *ptRequest = new Json(strBuffer[0].substr(0, unPosition));
-                              strBuffer[0].erase(0, (unPosition + 1));
-                              if (ptRequest->m.find("Module") != ptRequest->m.end() && !ptRequest->m["Module"]->v.empty())
+                              strBuffer[0].append(szBuffer, nReturn);
+                              while ((unPosition = strBuffer[0].find("\n")) != string::npos)
                               {
-                                string strCommand;
-                                if (module.find(ptRequest->m["Module"]->v) != module.end())
+                                Json *ptRequest = new Json(strBuffer[0].substr(0, unPosition));
+                                strBuffer[0].erase(0, (unPosition + 1));
+                                if (ptRequest->m.find("Module") != ptRequest->m.end() && !ptRequest->m["Module"]->v.empty())
                                 {
-                                  strCommand = module[ptRequest->m["Module"]->v]["Command"];
-                                }
-                                if (!strCommand.empty())
-                                {
-                                  char *args[100], *pszArgument;
-                                  int readpipe[2] = {-1, -1}, writepipe[2] = {-1, -1};
-                                  pid_t childPid;
-                                  string strArgument;
-                                  stringstream ssCommand;
-                                  time_t CStartTime = 0, CEndTime = 0, CTimeout = CHILD_TIMEOUT;
-                                  unsigned int unIndex = 0;
-                                  time(&CStartTime);
-                                  if (ptRequest->m.find("Timeout") != ptRequest->m.end() && !ptRequest->m["Timeout"]->v.empty())
+                                  string strCommand;
+                                  if (module.find(ptRequest->m["Module"]->v) != module.end())
                                   {
-                                    bool bNumeric = true;
-                                    for (unsigned int i = 0; i < ptRequest->m["Timeout"]->v.size(); i++)
+                                    strCommand = module[ptRequest->m["Module"]->v]["Command"];
+                                  }
+                                  if (!strCommand.empty())
+                                  {
+                                    char *args[100], *pszArgument;
+                                    int readpipe[2] = {-1, -1}, writepipe[2] = {-1, -1};
+                                    pid_t childPid;
+                                    string strArgument;
+                                    stringstream ssCommand;
+                                    time_t CStartTime = 0, CEndTime = 0, CTimeout = CHILD_TIMEOUT;
+                                    unsigned int unIndex = 0;
+                                    time(&CStartTime);
+                                    if (ptRequest->m.find("Timeout") != ptRequest->m.end() && !ptRequest->m["Timeout"]->v.empty())
                                     {
-                                      if (!isdigit(ptRequest->m["Timeout"]->v[i]))
+                                      bool bNumeric = true;
+                                      for (unsigned int i = 0; i < ptRequest->m["Timeout"]->v.size(); i++)
                                       {
-                                        bNumeric = false;
+                                        if (!isdigit(ptRequest->m["Timeout"]->v[i]))
+                                        {
+                                          bNumeric = false;
+                                        }
+                                      }
+                                      if (bNumeric)
+                                      {
+                                        CTimeout = atoi(ptRequest->m["Timeout"]->v.c_str());
                                       }
                                     }
-                                    if (bNumeric)
+                                    ssCommand.str(strCommand);
+                                    while (ssCommand >> strArgument)
                                     {
-                                      CTimeout = atoi(ptRequest->m["Timeout"]->v.c_str());
+                                      pszArgument = new char[strArgument.size() + 1];
+                                      strcpy(pszArgument, strArgument.c_str());
+                                      args[unIndex++] = pszArgument;
                                     }
-                                  }
-                                  ssCommand.str(strCommand);
-                                  while (ssCommand >> strArgument)
-                                  {
-                                    pszArgument = new char[strArgument.size() + 1];
-                                    strcpy(pszArgument, strArgument.c_str());
-                                    args[unIndex++] = pszArgument;
-                                  }
-                                  args[unIndex] = NULL;
-                                  if (pipe(readpipe) == 0)
-                                  {
-                                    if (pipe(writepipe) == 0)
+                                    args[unIndex] = NULL;
+                                    if (pipe(readpipe) == 0)
                                     {
-                                      if ((childPid = fork()) == 0)
+                                      if (pipe(writepipe) == 0)
                                       {
-                                        close(PARENT_WRITE);
-                                        close(PARENT_READ);
-                                        dup2(CHILD_READ, 0);
-                                        close(CHILD_READ);
-                                        dup2(CHILD_WRITE, 1);
-                                        close(CHILD_WRITE);
-                                        if (gpSyslog != NULL)
+                                        if ((childPid = fork()) == 0)
                                         {
-                                          gpSyslog->commandLaunched(strCommand);
+                                          close(PARENT_WRITE);
+                                          close(PARENT_READ);
+                                          dup2(CHILD_READ, 0);
+                                          close(CHILD_READ);
+                                          dup2(CHILD_WRITE, 1);
+                                          close(CHILD_WRITE);
+                                          if (gpSyslog != NULL)
+                                          {
+                                            gpSyslog->commandLaunched(strCommand);
+                                          }
+                                          execve(args[0], args, environ);
+                                          _exit(1);
                                         }
-                                        execve(args[0], args, environ);
-                                        _exit(1);
-                                      }
-                                      else if (childPid > 0)
-                                      {
-                                        list<string> keys;
-                                        string strJson, strSubError;
-                                        Json *ptData = new Json;
-                                        connection *ptConnection = new connection;
-                                        close(CHILD_READ);
-                                        close(CHILD_WRITE);
-                                        ptConnection->readpipe = PARENT_READ;
-                                        ptConnection->writepipe = PARENT_WRITE;
-                                        ptConnection->ptRequest = new Json(ptRequest);
-                                        keys.push_back("modules");
-                                        keys.push_back(ptRequest->m["Module"]->v);
-                                        if (gpStorage->request("retrieve", keys, ptData, strSubError))
+                                        else if (childPid > 0)
                                         {
-                                          ptConnection->ptRequest->insert("_storage", ptData);
+                                          list<string> keys;
+                                          string strJson, strSubError;
+                                          Json *ptData = new Json;
+                                          connection *ptConnection = new connection;
+                                          close(CHILD_READ);
+                                          close(CHILD_WRITE);
+                                          ptConnection->readpipe = PARENT_READ;
+                                          ptConnection->writepipe = PARENT_WRITE;
+                                          ptConnection->ptRequest = new Json(ptRequest);
+                                          keys.push_back("modules");
+                                          keys.push_back(ptRequest->m["Module"]->v);
+                                          if (storage("retrieve", keys, ptData, strSubError))
+                                          {
+                                            ptConnection->ptRequest->insert("_storage", ptData);
+                                          }
+                                          else if (strSubError != "Failed to find key.")
+                                          {
+                                            ssMessage.str("");
+                                            ssMessage << strPrefix << "->storage() error:  " << strSubError;
+                                            gpCentral->log(ssMessage.str());
+                                          }
+                                          keys.clear();
+                                          delete ptData;
+                                          ptConnection->childPid = childPid;
+                                          ptConnection->CStartTime = CStartTime;
+                                          ptConnection->CEndTime = CEndTime;
+                                          ptConnection->CTimeout = CTimeout;
+                                          ptConnection->strBuffer[1] = ptConnection->ptRequest->json(strJson) + "\n";
+                                          ptConnection->strCommand = strCommand;
+                                          queue.push_back(ptConnection);
                                         }
-                                        keys.clear();
-                                        delete ptData;
-                                        ptConnection->childPid = childPid;
-                                        ptConnection->CStartTime = CStartTime;
-                                        ptConnection->CEndTime = CEndTime;
-                                        ptConnection->CTimeout = CTimeout;
-                                        ptConnection->strBuffer[1] = ptConnection->ptRequest->json(strJson) + "\n";
-                                        ptConnection->strCommand = strCommand;
-                                        queue.push_back(ptConnection);
+                                        else
+                                        {
+                                          ssMessage.str("");
+                                          ssMessage << "fork(" << errno << ") " << strerror(errno);
+                                          strError = ssMessage.str();
+                                        }
                                       }
                                       else
                                       {
                                         ssMessage.str("");
-                                        ssMessage << "fork(" << errno << ") " << strerror(errno);
+                                        ssMessage << "pipe(write," << errno << ") " << strerror(errno);
                                         strError = ssMessage.str();
                                       }
                                     }
                                     else
                                     {
                                       ssMessage.str("");
-                                      ssMessage << "pipe(write," << errno << ") " << strerror(errno);
+                                      ssMessage << "pipe(read," << errno << ") " << strerror(errno);
                                       strError = ssMessage.str();
+                                    }
+                                    for (unsigned int i = 0; i < unIndex; i++)
+                                    {
+                                      delete[] args[i];
                                     }
                                   }
                                   else
                                   {
-                                    ssMessage.str("");
-                                    ssMessage << "pipe(read," << errno << ") " << strerror(errno);
-                                    strError = ssMessage.str();
-                                  }
-                                  for (unsigned int i = 0; i < unIndex; i++)
-                                  {
-                                    delete[] args[i];
+                                    strError = "The requested module does not exist.";
                                   }
                                 }
                                 else
                                 {
-                                  strError = "The requested module does not exist.";
+                                  strError = "Please provide the Module.";
                                 }
+                                if (!strError.empty())
+                                {
+                                  string strJson;
+                                  ptRequest->insert("Status", "error");
+                                  ptRequest->insert("Error", strError);
+                                  ptRequest->json(strJson);
+                                  strJson += "\n";
+                                  strBuffer[1].append(strJson);
+                                }
+                                delete ptRequest;
                               }
-                              else
-                              {
-                                strError = "Please provide the Module.";
-                              }
-                              if (!strError.empty())
-                              {
-                                string strJson;
-                                ptRequest->insert("Status", "error");
-                                ptRequest->insert("Error", strError);
-                                ptRequest->json(strJson);
-                                strJson += "\n";
-                                strBuffer[1].append(strJson);
-                              }
-                              delete ptRequest;
+                            }
+                            else
+                            {
+                              bExit = true;
                             }
                           }
-                          else
+                          // }}}
+                          // {{{ write
+                          if (fds[unfdIndex].revents & POLLOUT)
                           {
-                            bExit = true;
+                            if ((nReturn = write(fdData, strBuffer[1].c_str(), strBuffer[1].size())) > 0)
+                            {
+                              strBuffer[1].erase(0, nReturn);
+                            }
+                            else
+                            {
+                              bExit = true;
+                            }
                           }
+                          // }}}
                         }
                         // }}}
-                        // {{{ write
-                        if (fds[unfdIndex].revents & POLLOUT)
+                        // {{{ module pipes
+                        for (list<connection *>::iterator i = queue.begin(); i != queue.end(); i++)
                         {
-                          if ((nReturn = write(fdData, strBuffer[1].c_str(), strBuffer[1].size())) > 0)
+                          bool bDone = false;
+                          string strError;
+                          // {{{ read
+                          if (fds[unfdIndex].fd == (*i)->readpipe && (fds[unfdIndex].revents & (POLLHUP | POLLIN)))
                           {
-                            strBuffer[1].erase(0, nReturn);
+                            char szBuffer[65536];
+                            ssize_t nSubReturn;
+                            if ((nSubReturn = read((*i)->readpipe, szBuffer, 65536)) > 0)
+                            {
+                              (*i)->strBuffer[0].append(szBuffer, nSubReturn);
+                            }
+                            else
+                            {
+                              bDone = true;
+                              if (nSubReturn < 0)
+                              {
+                                stringstream ssError;
+                                ssError << "read(" << errno << ") " << strerror(errno);
+                                strError = ssError.str();
+                              }
+                            }
                           }
-                          else
+                          // }}}
+                          // {{{ write
+                          if (fds[unfdIndex].fd == (*i)->writepipe && (fds[unfdIndex].revents & (POLLHUP | POLLOUT)))
                           {
-                            bExit = true;
+                            ssize_t nSubReturn;
+                            if ((nSubReturn = write((*i)->writepipe, (*i)->strBuffer[1].c_str(), (*i)->strBuffer[1].size())) > 0)
+                            {
+                              (*i)->strBuffer[1].erase(0, nSubReturn);
+                            }
+                            else
+                            {
+                              bDone = true;
+                              if (nSubReturn < 0)
+                              {
+                                stringstream ssError;
+                                ssError << "write(" << errno << ") " << strerror(errno);
+                                strError = ssError.str();
+                              }
+                            }
                           }
-                        }
-                        // }}}
-                      }
-                      // }}}
-                      // {{{ module pipes
-                      for (list<connection *>::iterator i = queue.begin(); i != queue.end(); i++)
-                      {
-                        bool bDone = false;
-                        string strError;
-                        // {{{ read
-                        if (fds[unfdIndex].fd == (*i)->readpipe && (fds[unfdIndex].revents & (POLLHUP | POLLIN)))
-                        {
-                          char szBuffer[65536];
-                          ssize_t nSubReturn;
-                          if ((nSubReturn = read((*i)->readpipe, szBuffer, 65536)) > 0)
-                          {
-                            (*i)->strBuffer[0].append(szBuffer, nSubReturn);
-                          }
-                          else
+                          // }}}
+                          time(&((*i)->CEndTime));
+                          if (((*i)->CEndTime - (*i)->CStartTime) > (*i)->CTimeout)
                           {
                             bDone = true;
-                            if (nSubReturn < 0)
-                            {
-                              stringstream ssError;
-                              ssError << "read(" << errno << ") " << strerror(errno);
-                              strError = ssError.str();
-                            }
+                            strError = "Request timed out.";
+                            kill((*i)->childPid, SIGTERM);
                           }
+                          // {{{ done
+                          if (bDone)
+                          {
+                            string strJson;
+                            Json *ptResponse;
+                            close((*i)->readpipe);
+                            close((*i)->writepipe);
+                            if (gpSyslog != NULL)
+                            {
+                              gpSyslog->commandEnded((*i)->strCommand);
+                            }
+                            ptResponse = new Json((*i)->strBuffer[0]);
+                            if (ptResponse->m.find("_storage") != ptResponse->m.end())
+                            {
+                              if ((*i)->ptRequest->m.find("Module") != (*i)->ptRequest->m.end() && !(*i)->ptRequest->m["Module"]->v.empty())
+                              {
+                                list<string> keys;
+                                string strSubError;
+                                keys.push_back("modules");
+                                keys.push_back((*i)->ptRequest->m["Module"]->v);
+                                if (!storage("add", keys, ptResponse->m["_storage"], strSubError))
+                                {
+                                  ssMessage.str("");
+                                  ssMessage << strPrefix << "->storage() error:  " << strSubError;
+                                  gpCentral->log(ssMessage.str());
+                                }
+                                keys.clear();
+                              }
+                              delete ptResponse->m["_storage"];
+                              ptResponse->m.erase("_storage");
+                            }
+                            strBuffer[1].append(ptResponse->json(strJson)+"\n");
+                            (*i)->strBuffer[0].clear();
+                            delete (*i)->ptRequest;
+                            delete *i;
+                            removeList.push_back(i);
+                          }
+                          // }}}
                         }
                         // }}}
-                        // {{{ write
-                        if (fds[unfdIndex].fd == (*i)->writepipe && (fds[unfdIndex].revents & (POLLHUP | POLLOUT)))
+                        for (list<list<connection *>::iterator>::iterator i = removeList.begin(); i != removeList.end(); i++)
                         {
-                          ssize_t nSubReturn;
-                          if ((nSubReturn = write((*i)->writepipe, (*i)->strBuffer[1].c_str(), (*i)->strBuffer[1].size())) > 0)
-                          {
-                            (*i)->strBuffer[1].erase(0, nSubReturn);
-                          }
-                          else
-                          {
-                            bDone = true;
-                            if (nSubReturn < 0)
-                            {
-                              stringstream ssError;
-                              ssError << "write(" << errno << ") " << strerror(errno);
-                              strError = ssError.str();
-                            }
-                          }
+                          queue.erase(*i);
                         }
-                        // }}}
-                        time(&((*i)->CEndTime));
-                        if (((*i)->CEndTime - (*i)->CStartTime) > (*i)->CTimeout)
-                        {
-                          bDone = true;
-                          strError = "Request timed out.";
-                          kill((*i)->childPid, SIGTERM);
-                        }
-                        // {{{ done
-                        if (bDone)
-                        {
-                          string strJson;
-                          Json *ptResponse;
-                          close((*i)->readpipe);
-                          close((*i)->writepipe);
-                          if (gpSyslog != NULL)
-                          {
-                            gpSyslog->commandEnded((*i)->strCommand);
-                          }
-                          ptResponse = new Json((*i)->strBuffer[0]);
-                          if (ptResponse->m.find("_storage") != ptResponse->m.end())
-                          {
-                            if ((*i)->ptRequest->m.find("Module") != (*i)->ptRequest->m.end() && !(*i)->ptRequest->m["Module"]->v.empty())
-                            {
-                              list<string> keys;
-                              string strSubError;
-                              keys.push_back("modules");
-                              keys.push_back((*i)->ptRequest->m["Module"]->v);
-                              gpStorage->request("add", keys, ptResponse->m["_storage"], strSubError);
-                              keys.clear();
-                            }
-                            delete ptResponse->m["_storage"];
-                            ptResponse->m.erase("_storage");
-                          }
-                          strBuffer[1].append(ptResponse->json(strJson)+"\n");
-                          (*i)->strBuffer[0].clear();
-                          delete (*i)->ptRequest;
-                          delete *i;
-                          removeList.push_back(i);
-                        }
-                        // }}}
+                        removeList.clear();
                       }
-                      // }}}
-                      for (list<list<connection *>::iterator>::iterator i = removeList.begin(); i != removeList.end(); i++)
-                      {
-                        queue.erase(*i);
-                      }
-                      removeList.clear();
                     }
+                    else if (nReturn < 0)
+                    {
+                      bExit = true;
+                      ssMessage.str("");
+                      ssMessage << strPrefix << "->poll(" << errno << ") error:  " << strerror(errno);
+                      gpCentral->log(ssMessage.str());
+                    }
+                    delete[] fds;
+                  }
+                  for (list<connection *>::iterator i = queue.begin(); i != queue.end(); i++)
+                  {
+                    close((*i)->readpipe);
+                    close((*i)->writepipe);
+                    (*i)->strBuffer[0].clear();
+                    (*i)->strBuffer[1].clear();
+                    delete (*i)->ptRequest;
+                    delete *i;
+                    ssMessage.str("");
+                    ssMessage << strPrefix << ":  Removed unaccounted for request from queue.";
+                    gpCentral->log(ssMessage.str());
+                  }
+                  queue.clear();
+                  close(fdData);
+                  _exit(1);
+                }
+                else
+                {
+                  close(fdData);
+                }
+              }
+              if (!gbShutdown)
+              {
+                gbShutdown = true;
+              }
+              ssMessage.str("");
+              ssMessage << strPrefix << ":  Lost connection to the socket!  Exiting...";
+              gpCentral->alert(ssMessage.str());
+            }
+            else
+            {
+              ssMessage.str("");
+              ssMessage << strPrefix << "->listen(" << errno << ") error:  " << strerror(errno);
+              gpCentral->alert(ssMessage.str());
+            }
+            close(fdUnix);
+            ssMessage.str("");
+            ssMessage << strPrefix << ":  Closed the socket.";
+            gpCentral->log(ssMessage.str());
+          }
+          else
+          {
+            ssMessage.str("");
+            ssMessage << strPrefix << "->bind(" << errno << ") error:  " << strerror(errno);
+            gpCentral->alert(ssMessage.str());
+          }
+        }
+        else
+        {
+          ssMessage.str("");
+          ssMessage << strPrefix << "->socket(" << errno << ") error:  " << strerror(errno);
+          gpCentral->alert(ssMessage.str());
+        }
+        gpCentral->file()->remove((gstrData + UNIX_SOCKET).c_str());
+      }
+      // }}}
+      // {{{ storage
+      else if (nStoragePid == 0)
+      {
+        int fdUnix = -1, nReturn;
+        gpCentral->file()->remove((gstrData + STORAGE_SOCKET).c_str());
+        if ((fdUnix = socket(AF_UNIX, SOCK_STREAM, 0)) >= 0)
+        {
+          sockaddr_un addr;
+          ssMessage.str("");
+          ssMessage << strPrefix << "->socket():  Created the storage socket.";
+          gpCentral->log(ssMessage.str());
+          memset(&addr, 0, sizeof(sockaddr_un));
+          addr.sun_family = AF_UNIX;
+          strncpy(addr.sun_path, (gstrData + STORAGE_SOCKET).c_str(), sizeof(addr.sun_path) - 1);
+          if (bind(fdUnix, (sockaddr *)&addr, sizeof(sockaddr_un)) == 0)
+          {
+            ssMessage.str("");
+            ssMessage << strPrefix << "->bind():  Bound to the storage socket.";
+            gpCentral->log(ssMessage.str());
+            chmod((gstrData + STORAGE_SOCKET).c_str(), 00700);
+            if (listen(fdUnix, SOMAXCONN) == 0)
+            {
+              int fdData;
+              string strSystem;
+              sockaddr_un cli_addr;
+              socklen_t clilen = sizeof(cli_addr);
+              map<string, map<string, string> > module;
+              ssMessage.str("");
+              ssMessage << strPrefix << "->listen():  Listening to the storage socket.";
+              gpCentral->log(ssMessage.str());
+              clilen = sizeof(cli_addr);
+              Storage *pStorage = new Storage;
+              while (!gbShutdown && (fdData = accept(fdUnix, (struct sockaddr *)&cli_addr, &clilen)) >= 0)
+              {
+                bool bExit = false;
+                char szBuffer[65536];
+                size_t unPosition;
+                string strBuffer[2], strJson;
+                if (gpCentral->file()->fileExist(gstrData + "/.shutdown"))
+                {
+                  gpCentral->file()->remove(gstrData + "/.shutdown");
+                  gbShutdown = true;
+                }
+                while (!bExit)
+                {
+                  pollfd fds[1];
+                  fds[0].fd = fdData;
+                  fds[0].events = POLLIN;
+                  if (!strBuffer[1].empty())
+                  {
+                    fds[0].events |= POLLOUT;
+                  }
+                  if ((nReturn = poll(fds, 1, 2000)) > 0)
+                  {
+                    // {{{ read
+                    if (fds[0].revents & POLLIN)
+                    {
+                      if ((nReturn = read(fdData, szBuffer, 65536)) > 0)
+                      {
+                        strBuffer[0].append(szBuffer, nReturn);
+                        while ((unPosition = strBuffer[0].find("\n")) != string::npos)
+                        {
+                          bool bProcessed = false;
+                          Json *ptJson = new Json(strBuffer[0].substr(0, unPosition));
+                          strBuffer[0].erase(0, (unPosition + 1));
+                          strError.clear();
+                          if (ptJson->m.find("Action") != ptJson->m.end() && !ptJson->m["Action"]->v.empty())
+                          {
+                            list<string> keys;
+                            Json *ptData;
+                            if (ptJson->m.find("Keys") != ptJson->m.end())
+                            {
+                              for (list<Json *>::iterator i = ptJson->m["Keys"]->l.begin(); i != ptJson->m["Keys"]->l.end(); i++)
+                              {
+                                keys.push_back((*i)->v);
+                              }
+                            }
+                            if (ptJson->m.find("Data") != ptJson->m.end())
+                            {
+                              ptData = new Json(ptJson->m["Data"]);
+                            }
+                            else
+                            {
+                              ptData = new Json;
+                            }
+                            if (pStorage->request(ptJson->m["Action"]->v, keys, ptData, strError))
+                            {
+                              bProcessed = true;
+                              ptJson->insert("Data", ptData);
+                            }
+                            keys.clear();
+                          }
+                          else
+                          {
+                            strError = "Please provide the Action.";
+                          }
+                          ptJson->insert("Status", ((bProcessed)?"okay":"error"));
+                          if (!strError.empty())
+                          {
+                            ptJson->insert("Error", strError);
+                          }
+                          strBuffer[1].append(ptJson->json(strJson)+"\n");
+                          delete ptJson;
+                        }
+                      }
+                      else
+                      {
+                        bExit = true;
+                      }
+                    }
+                    // }}}
+                    // {{{ write
+                    if (fds[0].revents & POLLOUT)
+                    {
+                      if ((nReturn = write(fdData, strBuffer[1].c_str(), strBuffer[1].size())) > 0)
+                      {
+                        strBuffer[1].erase(0, nReturn);
+                      }
+                      else
+                      {
+                        bExit = true;
+                      }
+                    }
+                    // }}}
                   }
                   else if (nReturn < 0)
                   {
@@ -629,63 +843,53 @@ int main(int argc, char *argv[])
                     ssMessage << strPrefix << "->poll(" << errno << ") error:  " << strerror(errno);
                     gpCentral->log(ssMessage.str());
                   }
-                  delete[] fds;
                 }
-                for (list<connection *>::iterator i = queue.begin(); i != queue.end(); i++)
-                {
-                  close((*i)->readpipe);
-                  close((*i)->writepipe);
-                  (*i)->strBuffer[0].clear();
-                  (*i)->strBuffer[1].clear();
-                  delete (*i)->ptRequest;
-                  delete *i;
-                  ssMessage.str("");
-                  ssMessage << strPrefix << ":  Removed unaccounted for request from queue.";
-                  gpCentral->log(ssMessage.str());
-                }
-                queue.clear();
                 close(fdData);
-                _exit(1);
               }
-              else
+              if (!gbShutdown)
               {
-                close(fdData);
+                gbShutdown = true;
               }
+              delete pStorage;
+              ssMessage.str("");
+              ssMessage << strPrefix << ":  Lost connection to the storage socket!  Exiting...";
+              gpCentral->alert(ssMessage.str());
             }
-            if (!gbShutdown)
+            else
             {
-              gbShutdown = true;
+              ssMessage.str("");
+              ssMessage << strPrefix << "->listen(" << errno << ") error:  " << strerror(errno);
+              gpCentral->alert(ssMessage.str());
             }
-            delete gpStorage;
+            close(fdUnix);
             ssMessage.str("");
-            ssMessage << strPrefix << ":  Lost connection to the socket!  Exiting...";
-            gpCentral->alert(ssMessage.str());
+            ssMessage << strPrefix << ":  Closed the socket.";
+            gpCentral->log(ssMessage.str());
           }
           else
           {
             ssMessage.str("");
-            ssMessage << strPrefix << "->listen(" << errno << ") error:  " << strerror(errno);
+            ssMessage << strPrefix << "->bind(" << errno << ") error:  " << strerror(errno);
             gpCentral->alert(ssMessage.str());
           }
-          close(fdUnix);
-          ssMessage.str("");
-          ssMessage << strPrefix << ":  Closed the socket.";
-          gpCentral->log(ssMessage.str());
         }
         else
         {
           ssMessage.str("");
-          ssMessage << strPrefix << "->bind(" << errno << ") error:  " << strerror(errno);
+          ssMessage << strPrefix << "->socket(" << errno << ") error:  " << strerror(errno);
           gpCentral->alert(ssMessage.str());
         }
+        gpCentral->file()->remove((gstrData + STORAGE_SOCKET).c_str());
       }
+      // }}}
+      // {{{ error
       else
       {
         ssMessage.str("");
-        ssMessage << strPrefix << "->socket(" << errno << ") error:  " << strerror(errno);
+        ssMessage << strPrefix << "->fork(" << errno << ") error:  " << strerror(errno);
         gpCentral->alert(ssMessage.str());
       }
-      gpCentral->file()->remove((gstrData + UNIX_SOCKET).c_str());
+      // }}}
       // {{{ check pid file
       if (gpCentral->file()->fileExist((gstrData + PID).c_str()))
       {
@@ -724,5 +928,129 @@ void sighandle(const int nSignal)
     gpCentral->alert((string)"The program's signal handling caught a " + (string)sigstring(strSignal, nSignal) + (string)"(" + ssSignal.str() + (string)")!  Exiting...", strError);
   }
   exit(1);
+}
+// }}}
+// {{{ storage()
+bool storage(const string strAction, list<string> keys, Json *ptData, string &strError)
+{
+  bool bResult = false;
+  int fdUnix = -1, nReturn;
+
+  if ((fdUnix = socket(AF_UNIX, SOCK_STREAM, 0)) >= 0)
+  {
+    sockaddr_un addr;
+    memset(&addr, 0, sizeof(sockaddr_un));
+    addr.sun_family = AF_UNIX;
+    strncpy(addr.sun_path, (gstrData + STORAGE_SOCKET).c_str(), sizeof(addr.sun_path) - 1);
+    if (connect(fdUnix, (sockaddr *)&addr, sizeof(sockaddr_un)) == 0)
+    {
+      bool bExit = false;
+      char szBuffer[65536];
+      size_t unPosition;
+      string strBuffer[2], strJson;
+      Json *ptJson = new Json;
+      ptJson->insert("Action", strAction);
+      ptJson->insert("Keys", keys);
+      if (ptData != NULL)
+      {
+        ptJson->insert("Data", ptData);
+      }
+      ptJson->json(strBuffer[1]);
+      delete ptJson;
+      strBuffer[1].append("\n");
+      while (!bExit)
+      {
+        pollfd fds[1];
+        fds[0].fd = fdUnix;
+        fds[0].events = POLLIN;
+        if (!strBuffer[1].empty())
+        {
+          fds[0].events |= POLLOUT;
+        }
+        if ((nReturn = poll(fds, 1, 250)) > 0)
+        {
+          if (fds[0].fd == fdUnix && (fds[0].revents & POLLIN))
+          {
+            if ((nReturn = read(fdUnix, szBuffer, 65536)) > 0)
+            {
+              strBuffer[0].append(szBuffer, nReturn);
+              if ((unPosition = strBuffer[0].find("\n")) != string::npos)
+              {
+                bExit = true;
+                ptJson = new Json(strBuffer[0].substr(0, unPosition));
+                strBuffer[0].erase(0, unPosition + 1);
+                if (ptJson->m.find("Status") != ptJson->m.end() && ptJson->m["Status"]->v == "okay")
+                {
+                  bResult = true;
+                  if (ptData != NULL && ptJson->m.find("Data") != ptJson->m.end())
+                  {
+                    ptData->parse(ptJson->m["Data"]->json(strJson));
+                  }
+                }
+                else if (ptJson->m.find("Error") != ptJson->m.end() && !ptJson->m["Error"]->v.empty())
+                {
+                  strError = ptJson->m["Error"]->v;
+                }
+                else
+                {
+                  strError = "Encountered an unknown error.";
+                }
+                delete ptJson;
+              }
+            }
+            else
+            {
+              bExit = true;
+              if (nReturn < 0)
+              {
+                stringstream ssError;
+                ssError << "read(" << errno << ") " << strerror(errno);
+                strError = ssError.str();
+              }
+            }
+          }
+          if (fds[0].fd == fdUnix && (fds[0].revents & POLLOUT))
+          {
+            if ((nReturn = write(fdUnix, strBuffer[1].c_str(), strBuffer[1].size())) > 0)
+            {
+              strBuffer[1].erase(0, nReturn);
+            }
+            else
+            {
+              bExit = true;
+              if (nReturn < 0)
+              {
+                stringstream ssError;
+                ssError << "write(" << errno << ") " << strerror(errno);
+                strError = ssError.str();
+              }
+            }
+          }
+        }
+        else if (nReturn < 0)
+        {
+          stringstream ssError;
+          bExit = true;
+          ssError << "poll(" << errno << ") " << strerror(errno);
+          strError = ssError.str();
+        }
+      }
+    }
+    else
+    {
+      stringstream ssError;
+      ssError << "connect(" << errno << ") " << strerror(errno);
+      strError = ssError.str();
+    }
+    close(fdUnix);
+  }
+  else
+  {
+    stringstream ssError;
+    ssError << "socket(" << errno << ") " << strerror(errno);
+    strError = ssError.str();
+  }
+
+  return bResult;
 }
 // }}}

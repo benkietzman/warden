@@ -95,6 +95,7 @@ int main(int argc, char *argv[])
       }
       delete ptData;
       keys.clear();
+      /*
       if (!bProcessed && (warden.passwordLogin(strUser, strPassword, strSubError) || warden.passwordVerify(strUser, strPassword, strType, strSubError) || warden.windowsLogin(strUser, strPassword, strSubError)))
       {
         bProcessed = true;
@@ -107,6 +108,41 @@ int main(int argc, char *argv[])
         }
         delete ptData;
         keys.clear();
+      }
+      else
+      {
+        strError = strSubError;
+      }
+      */
+      if (!bProcessed)
+      {
+        if (warden.passwordLogin(strUser, strPassword, strSubError))
+        {
+          bProcessed = true;
+          ptJson->insert("_module", "passwordLogin");
+        }
+        else if (warden.passwordVerify(strUser, strPassword, strType, strSubError))
+        {
+          bProcessed = true;
+          ptJson->insert("_module", "passwordVerify");
+        }
+        else if (warden.windowsLogin(strUser, strPassword, strSubError))
+        {
+          bProcessed = true;
+          ptJson->insert("_module", "windowsLogin");
+        }
+        if (bProcessed)
+        {
+          keys.push_back(strUser);
+          ptData = new Json;
+          ptData->value(strPassword);
+          if (pStorage->add(keys, ptData, strError))
+          {
+            bUpdated = true;
+          }
+          delete ptData;
+          keys.clear();
+        }
       }
       else
       {

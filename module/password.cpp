@@ -94,7 +94,6 @@ int main(int argc, char *argv[])
       if (strFunction == "login")
       {
         list<string> keys;
-        string strSubError;
         Json *ptData = new Json;
         keys.push_back(strUser);
         if (pStorage->retrieve(keys, ptData, strSubError) && ptData->v == strPassword)

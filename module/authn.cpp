@@ -60,7 +60,10 @@ int main(int argc, char *argv[])
   // }}}
   if (getline(cin, strJson))
   {
-    string strSecret, strSubError;
+    list<string> keys;
+    string strApplication = "Warden", strPassword, strSecret, strSubError, strType, strUser;
+    Json *ptData = new Json;
+    Warden warden(strApplication, strUnix, strError);
     ptJson = new Json(strJson);
     // {{{ load cache
     if (ptJson->m.find("_storage") != ptJson->m.end())
@@ -72,86 +75,44 @@ int main(int argc, char *argv[])
     // }}}
     if (ptJson->m.find("Application") != ptJson->m.end() && !ptJson->m["Application"]->v.empty())
     {
-      list<string> keys;
-      string strApplication = ptJson->m["Application"]->v, strPassword, strSubError, strType, strUser;
-      Json *ptData = new Json;
-      Warden warden(strApplication, strUnix, strError);
-      if (ptJson->m.find("Password") != ptJson->m.end() && !ptJson->m["Password"]->v.empty())
-      {
-        strPassword = ptJson->m["Password"]->v;
-      }
-      if (ptJson->m.find("Type") != ptJson->m.end() && !ptJson->m["Type"]->v.empty())
-      {
-        strType = ptJson->m["Type"]->v;
-      }
-      if (ptJson->m.find("User") != ptJson->m.end() && !ptJson->m["User"]->v.empty())
-      {
-        strUser = ptJson->m["User"]->v;
-      }
+      strApplication = ptJson->m["Application"]->v;
+    }
+    if (ptJson->m.find("Password") != ptJson->m.end() && !ptJson->m["Password"]->v.empty())
+    {
+      strPassword = ptJson->m["Password"]->v;
+    }
+    if (ptJson->m.find("Type") != ptJson->m.end() && !ptJson->m["Type"]->v.empty())
+    {
+      strType = ptJson->m["Type"]->v;
+    }
+    if (ptJson->m.find("User") != ptJson->m.end() && !ptJson->m["User"]->v.empty())
+    {
+      strUser = ptJson->m["User"]->v;
+    }
+    keys.push_back(strUser);
+    if (pStorage->retrieve(keys, ptData, strSubError) && ptData->v == strPassword)
+    {
+      bProcessed = true;
+    }
+    delete ptData;
+    keys.clear();
+    strSubError.clear();
+    if (!bProcessed && (warden.passwordLogin(strUser, strPassword, strSubError) || warden.passwordVerify(strUser, strPassword, strType, strSubError) || warden.windowsLogin(strUser, strPassword, strSubError)))
+    {
+      bProcessed = true;
       keys.push_back(strUser);
-      if (pStorage->retrieve(keys, ptData, strSubError) && ptData->v == strPassword)
+      ptData = new Json;
+      ptData->value(strPassword);
+      if (pStorage->add(keys, ptData, strError))
       {
-        bProcessed = true;
+        bUpdated = true;
       }
       delete ptData;
       keys.clear();
-      /*
-      if (!bProcessed && (warden.passwordLogin(strUser, strPassword, strSubError) || warden.passwordVerify(strUser, strPassword, strType, strSubError) || warden.windowsLogin(strUser, strPassword, strSubError)))
-      {
-        bProcessed = true;
-        keys.push_back(strUser);
-        ptData = new Json;
-        ptData->value(strPassword);
-        if (pStorage->add(keys, ptData, strError))
-        {
-          bUpdated = true;
-        }
-        delete ptData;
-        keys.clear();
-      }
-      else
-      {
-        strError = strSubError;
-      }
-      */
-      if (!bProcessed)
-      {
-        if (warden.passwordLogin(strUser, strPassword, strSubError))
-        {
-          bProcessed = true;
-          ptJson->insert("_module", "passwordLogin");
-        }
-        else if (warden.passwordVerify(strUser, strPassword, strType, strSubError))
-        {
-          bProcessed = true;
-          ptJson->insert("_module", "passwordVerify");
-        }
-        else if (warden.windowsLogin(strUser, strPassword, strSubError))
-        {
-          bProcessed = true;
-          ptJson->insert("_module", "windowsLogin");
-        }
-        if (bProcessed)
-        {
-          keys.push_back(strUser);
-          ptData = new Json;
-          ptData->value(strPassword);
-          if (pStorage->add(keys, ptData, strError))
-          {
-            bUpdated = true;
-          }
-          delete ptData;
-          keys.clear();
-        }
-      }
-      else
-      {
-        strError = strSubError;
-      }
     }
     else
     {
-      strError = "Please provide the Application.";
+      strError = strSubError;
     }
   }
   else

@@ -60,6 +60,7 @@ int main(int argc, char *argv[])
   // }}}
   if (getline(cin, strJson))
   {
+    bool bApplication = false;
     list<string> keys;
     string strApplication = "Warden", strPassword, strSecret, strSubError, strType, strUser;
     Json *ptData = new Json;
@@ -75,6 +76,7 @@ int main(int argc, char *argv[])
     // }}}
     if (ptJson->m.find("Application") != ptJson->m.end() && !ptJson->m["Application"]->v.empty())
     {
+      bApplication = true;
       strApplication = ptJson->m["Application"]->v;
     }
     if (ptJson->m.find("Password") != ptJson->m.end() && !ptJson->m["Password"]->v.empty())
@@ -97,7 +99,7 @@ int main(int argc, char *argv[])
     delete ptData;
     keys.clear();
     strSubError.clear();
-    if (!bProcessed && (warden.passwordLogin(strUser, strPassword, strSubError) || warden.passwordVerify(strUser, strPassword, strType, strSubError) || warden.windowsLogin(strUser, strPassword, strSubError)))
+    if (!bProcessed && (warden.passwordLogin(strUser, strPassword, strSubError) || (bApplication && warden.passwordVerify(strUser, strPassword, strType, strSubError)) || warden.windowsLogin(strUser, strPassword, strSubError)))
     {
       bProcessed = true;
       keys.push_back(strUser);

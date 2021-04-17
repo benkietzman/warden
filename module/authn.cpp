@@ -91,26 +91,61 @@ int main(int argc, char *argv[])
     {
       strUser = ptJson->m["User"]->v;
     }
-    keys.push_back(strUser);
-    if (pStorage->retrieve(keys, ptData, strSubError) && ptData->v == strPassword)
+    if (bApplication)
     {
-      bProcessed = true;
-    }
-    delete ptData;
-    keys.clear();
-    strSubError.clear();
-    if (!bProcessed && (warden.passwordLogin(strUser, strPassword, strSubError) || (bApplication && warden.passwordVerify(strUser, strPassword, strType, strSubError)) || warden.windowsLogin(strUser, strPassword, strSubError)))
-    {
-      bProcessed = true;
+      keys.push_back(strApplication);
       keys.push_back(strUser);
-      ptData = new Json;
-      ptData->value(strPassword);
-      if (pStorage->add(keys, ptData, strError))
+      if (pStorage->retrieve(keys, ptData, strSubError) && ptData->m.find("Password") == ptData->m.end() && ptData->v == strPassword && (strType.empty() || (ptData->m.find("Type") != ptData->m.end() && ptData->m["Type"]->v == strType)))
       {
-        bUpdated = true;
+        bProcessed = true;
       }
       delete ptData;
       keys.clear();
+    }
+    if (!bProcessed)
+    {
+      keys.push_back(strUser);
+      if (pStorage->retrieve(keys, ptData, strSubError) && ptData->v == strPassword)
+      {
+        bProcessed = true;
+      }
+      delete ptData;
+      keys.clear();
+    }
+    strSubError.clear();
+    if (!bProcessed)
+    {
+      if (bApplication && warden.passwordVerify(strUser, strPassword, strType, strSubError))
+      {
+        bProcessed = true;
+        keys.push_back(strApplication);
+        keys.push_back(strUser);
+        ptData = new Json;
+        ptData->insert("Password", strPassword);
+        if (!strType.empty())
+        {
+          ptData->insert("Type", strType);
+        }
+        if (pStorage->add(keys, ptData, strError))
+        {
+          bUpdated = true;
+        }
+        delete ptData;
+        keys.clear();
+      }
+      else if (warden.passwordLogin(strUser, strPassword, strSubError) || warden.windowsLogin(strUser, strPassword, strSubError))
+      {
+        bProcessed = true;
+        keys.push_back(strUser);
+        ptData = new Json;
+        ptData->value(strPassword);
+        if (pStorage->add(keys, ptData, strError))
+        {
+          bUpdated = true;
+        }
+        delete ptData;
+        keys.clear();
+      }
     }
     else
     {

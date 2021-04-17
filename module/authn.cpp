@@ -133,6 +133,10 @@ int main(int argc, char *argv[])
         delete ptData;
         keys.clear();
       }
+      else if (bApplication)
+      {
+        strError = strSubError;
+      }
       else if (warden.passwordLogin(strUser, strPassword, strSubError) || warden.windowsLogin(strUser, strPassword, strSubError))
       {
         bProcessed = true;
@@ -146,10 +150,10 @@ int main(int argc, char *argv[])
         delete ptData;
         keys.clear();
       }
-    }
-    else
-    {
-      strError = strSubError;
+      else
+      {
+        strError = strSubError;
+      }
     }
   }
   else

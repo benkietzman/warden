@@ -83,6 +83,10 @@ int main(int argc, char *argv[])
     {
       strPassword = ptJson->m["Password"]->v;
     }
+    else if (ptJson->m.find("password") != ptJson->m.end() && !ptJson->m["password"]->v.empty())
+    {
+      strPassword = ptJson->m["password"]->v;
+    }
     if (ptJson->m.find("Type") != ptJson->m.end() && !ptJson->m["Type"]->v.empty())
     {
       strType = ptJson->m["Type"]->v;
@@ -90,6 +94,10 @@ int main(int argc, char *argv[])
     if (ptJson->m.find("User") != ptJson->m.end() && !ptJson->m["User"]->v.empty())
     {
       strUser = ptJson->m["User"]->v;
+    }
+    else if (ptJson->m.find("userid") != ptJson->m.end() && !ptJson->m["userid"]->v.empty())
+    {
+      strUser = ptJson->m["userid"]->v;
     }
     if (bApplication)
     {

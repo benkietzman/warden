@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
     bool bApplication = false;
     list<string> keys;
     string strApplication = "Warden", strPassword, strSecret, strSubError, strType, strUser;
-    Json *ptData = new Json;
+    Json *ptData;
     Warden warden(strApplication, strUnix, strError);
     ptJson = new Json(strJson);
     // {{{ load cache
@@ -101,6 +101,7 @@ int main(int argc, char *argv[])
     }
     if (bApplication)
     {
+      ptData = new Json;
       keys.push_back(strApplication);
       keys.push_back(strUser);
       if (pStorage->retrieve(keys, ptData, strSubError) && ptData->m.find("Password") == ptData->m.end() && ptData->v == strPassword && (strType.empty() || (ptData->m.find("Type") != ptData->m.end() && ptData->m["Type"]->v == strType)))
@@ -112,6 +113,7 @@ int main(int argc, char *argv[])
     }
     if (!bProcessed)
     {
+      ptData = new Json;
       keys.push_back(strUser);
       if (pStorage->retrieve(keys, ptData, strSubError) && ptData->v == strPassword)
       {

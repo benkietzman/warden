@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
   {
     bool bApplication = false;
     list<string> keys;
-    string strApplication = "Warden", strPassword, strSecret, strSubError, strType, strUser;
+    string strApplication = "Warden", strPassword, strSubError, strType, strUser;
     Json *ptData;
     Warden warden(strApplication, strUnix, strError);
     ptJson = new Json(strJson);

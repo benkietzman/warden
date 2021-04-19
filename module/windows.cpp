@@ -1,7 +1,7 @@
 // vim600: fdm=marker
 /* -*- c++ -*- */
 ///////////////////////////////////////////
-// Windows
+// Windows Authentication
 // -------------------------------------
 // file       : windows.cpp
 // author     : Ben Kietzman
@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
   // }}}
   if (getline(cin, strJson))
   {
-    string strSecret, strSubError;
+    string strSubError;
     ptJson = new Json(strJson);
     // {{{ load cache
     if (ptJson->m.find("_storage") != ptJson->m.end())

@@ -802,6 +802,7 @@ int main(int argc, char *argv[])
                               ptJson->insert("Data", ptData);
                             }
                             keys.clear();
+                            delete ptData;
                           }
                           else
                           {

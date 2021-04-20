@@ -8,13 +8,10 @@
 # email      : ben@kietzman.org
 ###########################################
 
-all: bin/authn bin/central bin/password bin/vault bin/windows
+all: bin/authn bin/password bin/vault bin/windows
 
 bin/authn: ../../common/libcommon.a obj/authn.o bin
 	g++ -o bin/authn obj/authn.o -L../../common -lcommon -lb64 -lcrypto -lexpat -lmjson -lpthread -lssl -ltar -lz
-
-bin/central: ../../common/libcommon.a obj/central.o bin
-	g++ -o bin/central obj/central.o -L../../common -lcommon -lb64 -lcrypto -lexpat -lmjson -lpthread -lssl -ltar -lz
 
 bin/password: ../../common/libcommon.a obj/password.o bin
 	g++ -o bin/password obj/password.o -L../../common -lcommon -lb64 -lcrypto -lexpat -lmjson -lpthread -lssl -ltar -lz
@@ -39,9 +36,6 @@ bin:
 
 obj/authn.o: authn.cpp obj ../../common/Makefile
 	g++ -g -Wall -c authn.cpp -o obj/authn.o -I../../common;
-
-obj/central.o: central.cpp obj ../../common/Makefile
-	g++ -g -Wall -c central.cpp -o obj/central.o -I../../common;
 
 obj/password.o: password.cpp obj ../../common/Makefile
 	g++ -g -Wall -c password.cpp -o obj/password.o -I../../common;

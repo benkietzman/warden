@@ -1,11 +1,11 @@
 // vim600: fdm=marker
 /* -*- c++ -*- */
 ///////////////////////////////////////////
-// Password Authentication
+// Central Authorization
 // -------------------------------------
-// file       : password.cpp
+// file       : central.cpp
 // author     : Ben Kietzman
-// begin      : 2021-04-15
+// begin      : 2021-04-20
 // copyright  : kietzman.org
 // email      : ben@kietzman.org
 ///////////////////////////////////////////

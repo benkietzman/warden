@@ -193,7 +193,7 @@ int main(int argc, char *argv[])
                                   ptData->insert("id", getPersonRow["id"], 'n');
                                   ptData->insert("active", getPersonRow["active"], ((getPersonRow["active"] == "1")?'1':'0'));
                                   ptData->insert("admin", getPersonRow["admin"], ((getPersonRow["admin"] == "1")?'1':'0'));
-                                  ptJson->insert("Data", getData);
+                                  ptJson->insert("Data", ptData);
                                   subOut.pop_front();
                                   for (list<string>::iterator i = subOut.begin(); i != subOut.end(); i++)
                                   {

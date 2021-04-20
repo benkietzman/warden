@@ -22,6 +22,7 @@
 // {{{ includes
 #include <cerrno>
 #include <cstring>
+#include <ctime>
 #include <fstream>
 #include <iostream>
 #include <list>
@@ -63,8 +64,12 @@ int main(int argc, char *argv[])
     bool bApplication = false;
     list<string> keys;
     string strApplication = "Warden", strPassword, strSubError, strType, strUser;
+    stringstream ssCurrent;
+    time_t CCurrent;
     Json *ptData;
     Warden warden(strApplication, strUnix, strError);
+    time(&CCurrent);
+    ssCurrent << CCurrent;
     ptJson = new Json(strJson);
     // {{{ load cache
     if (ptJson->m.find("_storage") != ptJson->m.end())
@@ -73,6 +78,33 @@ int main(int argc, char *argv[])
       delete ptJson->m["_storage"];
       ptJson->m.erase("_storage");
     }
+    ptData = new Json;
+    if (pStorage->retrieve(keys, ptData, strSubError))
+    {
+      for (map<string, Json *>::iterator i = ptData->m.begin(); i != ptData->m.end(); i++)
+      {
+        stringstream ssModified;
+        time_t CModified;
+        keys.push_back(i->first);
+        if (i->second->m.find("_modified") == i->second->m.end())
+        {
+          i->second->insert("_modified", ssCurrent.str(), 'n');
+          if (pStorage->add(keys, i->second, strSubError))
+          { 
+            bUpdated = true;
+          }
+        }
+        ssModified.str(i->second->m["_modified"]->v);
+        ssModified >> CModified;
+        if ((CCurrent - CModified) > 86400 && pStorage->remove(keys, strSubError))
+        { 
+          bUpdated = true;
+        }
+        keys.pop_back();
+      }
+    }
+    delete ptData;
+    keys.clear();
     // }}}
     if (ptJson->m.find("Application") != ptJson->m.end() && !ptJson->m["Application"]->v.empty())
     {
@@ -104,7 +136,7 @@ int main(int argc, char *argv[])
       ptData = new Json;
       keys.push_back(strApplication);
       keys.push_back(strUser);
-      if (pStorage->retrieve(keys, ptData, strSubError) && ptData->m.find("Password") == ptData->m.end() && ptData->v == strPassword && (strType.empty() || (ptData->m.find("Type") != ptData->m.end() && ptData->m["Type"]->v == strType)))
+      if (pStorage->retrieve(keys, ptData, strSubError) && ptData->m.find("Password") != ptData->m.end() && ptData->m["Password"]->v == strPassword && (strType.empty() || (ptData->m.find("Type") != ptData->m.end() && ptData->m["Type"]->v == strType)))
       {
         bProcessed = true;
       }
@@ -115,7 +147,7 @@ int main(int argc, char *argv[])
     {
       ptData = new Json;
       keys.push_back(strUser);
-      if (pStorage->retrieve(keys, ptData, strSubError) && ptData->v == strPassword)
+      if (pStorage->retrieve(keys, ptData, strSubError) && ptData->m.find("Password") != ptData->m.end() && ptData->m["Password"]->v == strPassword)
       {
         bProcessed = true;
       }
@@ -131,6 +163,7 @@ int main(int argc, char *argv[])
         keys.push_back(strApplication);
         keys.push_back(strUser);
         ptData = new Json;
+        ptData->insert("_modified", ssCurrent.str(), 'n');
         ptData->insert("Password", strPassword);
         if (!strType.empty())
         {
@@ -152,7 +185,8 @@ int main(int argc, char *argv[])
         bProcessed = true;
         keys.push_back(strUser);
         ptData = new Json;
-        ptData->value(strPassword);
+        ptData->insert("_modified", ssCurrent.str(), 'n');
+        ptData->insert("Password", strPassword);
         if (pStorage->add(keys, ptData, strError))
         {
           bUpdated = true;

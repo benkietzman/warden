@@ -188,8 +188,8 @@ int main(int argc, char *argv[])
                                 {
                                   Json *ptApps = new Json;
                                   bProcessed = true;
-                                  ptJson->insert("Data", ptData);
                                   ptData = new Json(getPersonRow);
+                                  ptJson->insert("Data", ptData);
                                   ptData->insert("_modified", ssCurrent.str(), 'n');
                                   ptData->insert("id", getPersonRow["id"], 'n');
                                   ptData->insert("active", getPersonRow["active"], ((getPersonRow["active"] == "1")?'1':'0'));

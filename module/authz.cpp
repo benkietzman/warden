@@ -133,10 +133,10 @@ int main(int argc, char *argv[])
       {
         bProcessed = true;
         keys.push_back(strUser);
+        ptJson->insert("Data", ptCentral);
         ptData = new Json;
         ptData->insert("_modified", ssCurrent.str(), 'n');
         ptData->insert("Data", ptCentral);
-        ptJson->insert("Data", ptCentral);
         if (pStorage->add(keys, ptData, strError))
         {
           bUpdated = true;

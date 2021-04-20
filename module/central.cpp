@@ -246,7 +246,7 @@ int main(int argc, char *argv[])
                       }
                       else
                       {
-                        strError = "Failed authentication.";
+                        strError = "User not found.";
                       }
                     }
                     else if (ptStatus->m.find("Error") != ptStatus->m.end() && !ptStatus->m["Error"]->v.empty())

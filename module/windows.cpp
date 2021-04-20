@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
   if (getline(cin, strJson))
   {
     list<string> keys;
-    string strSubError;
+    string strPassword, strSubError, strUser;
     stringstream ssCurrent;
     time_t CCurrent;
     Json *ptData;
@@ -103,90 +103,71 @@ int main(int argc, char *argv[])
     delete ptData;
     keys.clear();
     // }}}
-    if (ptJson->m.find("Function") != ptJson->m.end() && !ptJson->m["Function"]->v.empty())
+    if (ptJson->m.find("Password") != ptJson->m.end() && !ptJson->m["Password"]->v.empty())
     {
-      string strFunction = ptJson->m["Function"]->v, strPassword, strUser;
-      if (ptJson->m.find("Password") != ptJson->m.end() && !ptJson->m["Password"]->v.empty())
-      {
-        strPassword = ptJson->m["Password"]->v;
-      }
-      if (ptJson->m.find("User") != ptJson->m.end() && !ptJson->m["User"]->v.empty())
-      {
-        strUser = ptJson->m["User"]->v;
-      }
-      // {{{ login
-      if (strFunction == "login")
-      {
-        ptData = new Json;
-        keys.push_back(strUser);
-        if (pStorage->retrieve(keys, ptData, strSubError) && ptData->m.find("Password") != ptData->m.end() && ptData->m["Password"]->v == strPassword)
-        {
-          bProcessed = true;
-        }
-        delete ptData;
-        keys.clear();
-        if (!bProcessed)
-        {
-          ServiceJunction junction(strError);
-          list<string> in, out;
-          ptData = new Json;
-          junction.setApplication("Warden");
-          ptData->insert("Service", "samba");
-          ptData->insert("Function", "login");
-          ptData->insert("User", strUser);
-          ptData->insert("Password", strPassword);
-          ptData->insert("Domain", strDomain);
-          in.push_back(ptData->json(strJson));
-          delete ptData;
-          if (junction.request(in, out, strError))
-          {
-            if (!out.empty())
-            {
-              Json *ptStatus = new Json(out.front());
-              if (ptStatus->m.find("Status") != ptStatus->m.end() && ptStatus->m["Status"]->v == "okay")
-              {
-                bProcessed = true;
-                keys.push_back(strUser);
-                ptData = new Json;
-                ptData->insert("_modified", ssCurrent.str(), 'n');
-                ptData->insert("Password", strPassword);
-                if (pStorage->add(keys, ptData, strError))
-                {
-                  bUpdated = true;
-                }
-                delete ptData;
-                keys.clear();
-              }
-              else if (ptStatus->m.find("Error") != ptStatus->m.end() && !ptStatus->m["Error"]->v.empty())
-              {
-                strError = ptStatus->m["Error"]->v;
-              }
-              else
-              {
-                strError = "Encountered an unknown error.";
-              }
-              delete ptStatus;
-            }
-            else
-            {
-              strError = "Failed to receive a response.";
-            }
-          }
-          in.clear();
-          out.clear();
-        }
-      }
-      // }}}
-      // {{{ invalid
-      else
-      {
-        strError = "Please provide a valid Function:  login.";
-      }
-      // }}}
+      strPassword = ptJson->m["Password"]->v;
     }
-    else
+    if (ptJson->m.find("User") != ptJson->m.end() && !ptJson->m["User"]->v.empty())
     {
-      strError = "Please provide the Function.";
+      strUser = ptJson->m["User"]->v;
+    }
+    ptData = new Json;
+    keys.push_back(strUser);
+    if (pStorage->retrieve(keys, ptData, strSubError) && ptData->m.find("Password") != ptData->m.end() && ptData->m["Password"]->v == strPassword)
+    {
+      bProcessed = true;
+    }
+    delete ptData;
+    keys.clear();
+    if (!bProcessed)
+    {
+      ServiceJunction junction(strError);
+      list<string> in, out;
+      ptData = new Json;
+      junction.setApplication("Warden");
+      ptData->insert("Service", "samba");
+      ptData->insert("Function", "login");
+      ptData->insert("User", strUser);
+      ptData->insert("Password", strPassword);
+      ptData->insert("Domain", strDomain);
+      in.push_back(ptData->json(strJson));
+      delete ptData;
+      if (junction.request(in, out, strError))
+      {
+        if (!out.empty())
+        {
+          Json *ptStatus = new Json(out.front());
+          if (ptStatus->m.find("Status") != ptStatus->m.end() && ptStatus->m["Status"]->v == "okay")
+          {
+            bProcessed = true;
+            keys.push_back(strUser);
+            ptData = new Json;
+            ptData->insert("_modified", ssCurrent.str(), 'n');
+            ptData->insert("Password", strPassword);
+            if (pStorage->add(keys, ptData, strError))
+            {
+              bUpdated = true;
+            }
+            delete ptData;
+            keys.clear();
+          }
+          else if (ptStatus->m.find("Error") != ptStatus->m.end() && !ptStatus->m["Error"]->v.empty())
+          {
+            strError = ptStatus->m["Error"]->v;
+          }
+          else
+          {
+            strError = "Encountered an unknown error.";
+          }
+          delete ptStatus;
+        }
+        else
+        {
+          strError = "Failed to receive a response.";
+        }
+      }
+      in.clear();
+      out.clear();
     }
   }
   else

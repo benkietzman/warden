@@ -157,7 +157,7 @@ int main(int argc, char *argv[])
     strSubError.clear();
     if (!bProcessed)
     {
-      if (bApplication && warden.passwordVerify(strUser, strPassword, strType, strSubError))
+      if (bApplication && warden.password(strApplication, strUser, strPassword, strType, strSubError))
       {
         bProcessed = true;
         keys.push_back(strApplication);
@@ -180,7 +180,7 @@ int main(int argc, char *argv[])
       {
         strError = strSubError;
       }
-      else if (warden.passwordLogin(strUser, strPassword, strSubError) || warden.windowsLogin(strUser, strPassword, strSubError))
+      else if (warden.password(strUser, strPassword, strSubError) || warden.windows(strUser, strPassword, strSubError))
       {
         bProcessed = true;
         keys.push_back(strUser);

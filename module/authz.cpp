@@ -40,7 +40,7 @@ using namespace common;
 // {{{ main()
 int main(int argc, char *argv[])
 {
-  bool bProcessed = false, bUpdated = false;
+  bool bProcessed = false;
   string strError, strJson, strUnix;
   stringstream ssMessage;
   Json *ptJson;
@@ -77,33 +77,6 @@ int main(int argc, char *argv[])
       delete ptJson->m["_storage"];
       ptJson->m.erase("_storage");
     }
-    ptData = new Json;
-    if (pStorage->retrieve(keys, ptData, strSubError))
-    {
-      for (map<string, Json *>::iterator i = ptData->m.begin(); i != ptData->m.end(); i++)
-      {
-        stringstream ssModified;
-        time_t CModified;
-        keys.push_back(i->first);
-        if (i->second->m.find("_modified") == i->second->m.end())
-        {
-          i->second->insert("_modified", ssCurrent.str(), 'n');
-          if (pStorage->add(keys, i->second, strSubError))
-          { 
-            bUpdated = true;
-          }
-        }
-        ssModified.str(i->second->m["_modified"]->v);
-        ssModified >> CModified;
-        if ((CCurrent - CModified) > 300 && pStorage->remove(keys, strSubError))
-        { 
-          bUpdated = true;
-        }
-        keys.pop_back();
-      }
-    }
-    delete ptData;
-    keys.clear();
     // }}}
     if (ptJson->m.find("User") != ptJson->m.end() && !ptJson->m["User"]->v.empty())
     {
@@ -113,43 +86,20 @@ int main(int argc, char *argv[])
     {
       strUser = ptJson->m["userid"]->v;
     }
-    ptData = new Json;
-    keys.push_back(strUser);
-    if (pStorage->retrieve(keys, ptData, strSubError))
-    {
-      bProcessed = true;
-      if (ptData->m.find("Data") != ptData->m.end())
-      {
-        ptJson->insert("Data", ptData->m["Data"]);
-      }
-    }
-    delete ptData;
-    keys.clear();
     strSubError.clear();
-    if (!bProcessed)
+    ptData = new Json(ptJson);
+    if (warden.authn(ptData, strError))
     {
       Json *ptCentral = new Json;
-      if (warden.central(strUser, ptCentral, strSubError))
+      if (warden.central(strUser, ptCentral, strError))
       {
         bProcessed = true;
-        keys.push_back(strUser);
         ptJson->insert("Data", ptCentral);
-        ptData = new Json;
-        ptData->insert("_modified", ssCurrent.str(), 'n');
-        ptData->insert("Data", ptCentral);
-        if (pStorage->add(keys, ptData, strError))
-        {
-          bUpdated = true;
-        }
-        delete ptData;
-        keys.clear();
-      }
-      else
-      {
-        strError = strSubError;
+        ptJson->m["Data"]->insert("authn", ptData);
       }
       delete ptCentral;
     }
+    delete ptData;
   }
   else
   {
@@ -160,12 +110,6 @@ int main(int argc, char *argv[])
   if (!strError.empty())
   {
     ptJson->insert("Error", strError);
-  }
-  if (bUpdated)
-  {
-    pStorage->lock();
-    ptJson->insert("_storage", pStorage->ptr());
-    pStorage->unlock();
   }
   cout << ptJson << endl;
   delete ptJson;

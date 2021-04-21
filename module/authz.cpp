@@ -128,27 +128,30 @@ int main(int argc, char *argv[])
     strSubError.clear();
     if (!bProcessed)
     {
-      Json *ptCentral = new Json;
-      if (warden.central(strUser, ptCentral, strSubError))
+      Json *ptAuthn = new Json(ptJson);
+      if (warden.authn(ptAuthn, strError))
       {
-        bProcessed = true;
-        keys.push_back(strUser);
-        ptJson->insert("Data", ptCentral);
-        ptData = new Json;
-        ptData->insert("_modified", ssCurrent.str(), 'n');
-        ptData->insert("Data", ptCentral);
-        if (pStorage->add(keys, ptData, strError))
+        Json *ptCentral = new Json;
+        if (warden.central(strUser, ptCentral, strError))
         {
-          bUpdated = true;
+          bProcessed = true;
+          keys.push_back(strUser);
+          ptJson->insert("Data", ptCentral);
+          ptJson->m["Data"]->insert("authn", ptAuthn);
+          ptData = new Json;
+          ptData->insert("_modified", ssCurrent.str(), 'n');
+          ptData->insert("Data", ptCentral);
+          ptData->m["Data"]->insert("authn", ptAuthn);
+          if (pStorage->add(keys, ptData, strError))
+          {
+            bUpdated = true;
+          }
+          delete ptData;
+          keys.clear();
         }
-        delete ptData;
-        keys.clear();
+        delete ptCentral;
       }
-      else
-      {
-        strError = strSubError;
-      }
-      delete ptCentral;
+      delete ptAuthn;
     }
   }
   else

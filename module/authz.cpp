@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
     string strApplication = "Warden", strSubError, strUser;
     stringstream ssCurrent;
     time_t CCurrent;
-    Json *ptData;
+    Json *ptAuthn, *ptData;
     Warden warden(strApplication, strUnix, strError);
     time(&CCurrent);
     ssCurrent << CCurrent;
@@ -113,46 +113,31 @@ int main(int argc, char *argv[])
     {
       strUser = ptJson->m["userid"]->v;
     }
-    ptData = new Json;
-    keys.push_back(strUser);
-    if (pStorage->retrieve(keys, ptData, strSubError))
-    {
-      bProcessed = true;
-      if (ptData->m.find("Data") != ptData->m.end())
-      {
-        ptJson->insert("Data", ptData->m["Data"]);
-      }
-    }
-    delete ptData;
-    keys.clear();
     strSubError.clear();
-    if (!bProcessed)
+    ptAuthn = new Json(ptJson);
+    if (warden.authn(ptAuthn, strError))
     {
-      Json *ptAuthn = new Json(ptJson);
-      if (warden.authn(ptAuthn, strError))
+      Json *ptCentral = new Json;
+      if (warden.central(strUser, ptCentral, strError))
       {
-        Json *ptCentral = new Json;
-        if (warden.central(strUser, ptCentral, strError))
+        bProcessed = true;
+        keys.push_back(strUser);
+        ptJson->insert("Data", ptCentral);
+        ptJson->m["Data"]->insert("authn", ptAuthn);
+        ptData = new Json;
+        ptData->insert("_modified", ssCurrent.str(), 'n');
+        ptData->insert("Data", ptCentral);
+        ptData->m["Data"]->insert("authn", ptAuthn);
+        if (pStorage->add(keys, ptData, strError))
         {
-          bProcessed = true;
-          keys.push_back(strUser);
-          ptJson->insert("Data", ptCentral);
-          ptJson->m["Data"]->insert("authn", ptAuthn);
-          ptData = new Json;
-          ptData->insert("_modified", ssCurrent.str(), 'n');
-          ptData->insert("Data", ptCentral);
-          ptData->m["Data"]->insert("authn", ptAuthn);
-          if (pStorage->add(keys, ptData, strError))
-          {
-            bUpdated = true;
-          }
-          delete ptData;
-          keys.clear();
+          bUpdated = true;
         }
-        delete ptCentral;
+        delete ptData;
+        keys.clear();
       }
-      delete ptAuthn;
+      delete ptCentral;
     }
+    delete ptAuthn;
   }
   else
   {

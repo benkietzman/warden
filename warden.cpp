@@ -85,7 +85,7 @@ using namespace common;
 /*! \def STORAGE_SOCKET
 * \brief Contains the unix socket path.
 */
-#define STORAGE_SOCKET "/storage"
+#define STORAGE_SOCKET "/.storage"
 /*! \def UNIX_SOCKET
 * \brief Contains the unix socket path.
 */

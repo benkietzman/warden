@@ -34,6 +34,7 @@ using namespace std;
 #include <Json>
 #include <Storage>
 #include <StringManip>
+#include <Syslog>
 #include <Warden>
 using namespace common;
 // }}}
@@ -41,17 +42,22 @@ using namespace common;
 int main(int argc, char *argv[])
 {
   bool bProcessed = false, bUpdated = false;
-  string strError, strJson, strUnix;
+  string strApplication = "Warden", strError, strJson, strUnix;
   stringstream ssMessage;
   Json *ptJson;
   Storage *pStorage = new Storage;
   StringManip manip;
+  Syslog *pSyslog = NULL;
 
   // {{{ command line arguments
   for (int i = 1; i < argc; i++)
   {
     string strArg = argv[i];
-    if (strArg.size() > 7 && strArg.substr(0, 7) == "--unix=")
+    if (strArg == "--syslog")
+    {
+      pSyslog = new Syslog(strApplication, "authn");
+    }
+    else if (strArg.size() > 7 && strArg.substr(0, 7) == "--unix=")
     {
       strUnix = strArg.substr(7, strArg.size() - 7);
       manip.purgeChar(strUnix, strUnix, "'");
@@ -63,7 +69,7 @@ int main(int argc, char *argv[])
   {
     bool bApplication = false;
     list<string> keys;
-    string strApplication = "Warden", strPassword, strSubError, strType, strUser;
+    string strPassword, strSubError, strType, strUser;
     stringstream ssCurrent;
     time_t CCurrent;
     Json *ptData;
@@ -199,6 +205,17 @@ int main(int argc, char *argv[])
         strError = strSubError;
       }
     }
+    if (pSyslog != NULL)
+    {
+      if (bProcessed)
+      {
+        pSyslog->logon("Authenticated against Warden authn.", strUser);
+      }
+      else
+      {
+        pSyslog->logon("Failed to authenticate against Warden authn.", strUser, false);
+      }
+    }
   }
   else
   {
@@ -219,6 +236,10 @@ int main(int argc, char *argv[])
   cout << ptJson << endl;
   delete ptJson;
   delete pStorage;
+  if (pSyslog != NULL)
+  {
+    delete pSyslog;
+  }
 
   return 0;
 }

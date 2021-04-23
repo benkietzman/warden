@@ -55,7 +55,7 @@ int main(int argc, char *argv[])
     string strArg = argv[i];
     if (strArg == "--syslog")
     {
-      pSyslog = new Syslog(strApplication, "authn");
+      pSyslog = new Syslog(strApplication, "authz");
     }
     else if (strArg.size() > 7 && strArg.substr(0, 7) == "--unix=")
     {

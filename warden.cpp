@@ -606,10 +606,6 @@ int main(int argc, char *argv[])
                             Json *ptResponse;
                             close((*i)->readpipe);
                             close((*i)->writepipe);
-                            if (gpSyslog != NULL)
-                            {
-                              gpSyslog->commandEnded((*i)->strCommand);
-                            }
                             ptResponse = new Json((*i)->strBuffer[0]);
                             if (ptResponse->m.find("_storage") != ptResponse->m.end())
                             {

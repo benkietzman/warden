@@ -100,8 +100,12 @@ int main(int argc, char *argv[])
       if (warden.central(strUser, ptCentral, strError))
       {
         bProcessed = true;
-        ptJson->insert("Data", ptCentral);
-        ptJson->m["Data"]->insert("authn", ptData);
+        ptJson->m["Data"] = new Json;
+        ptJson->m["Data"]->insert("central", ptCentral);
+        if (ptData->m.find("Data") != ptData->m.end())
+        {
+          ptJson->m["Data"]->insert("authn", ptData->m["Data"]);
+        }
       }
       delete ptCentral;
     }

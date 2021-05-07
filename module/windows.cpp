@@ -60,6 +60,7 @@ int main(int argc, char *argv[])
   // }}}
   if (getline(cin, strJson))
   {
+    bool bDone = false;
     list<string> keys;
     string strPassword, strSubError, strUser;
     stringstream ssCurrent;
@@ -113,13 +114,28 @@ int main(int argc, char *argv[])
     }
     ptData = new Json;
     keys.push_back(strUser);
-    if (pStorage->retrieve(keys, ptData, strSubError) && ptData->m.find("Password") != ptData->m.end() && ptData->m["Password"]->v == strPassword)
+    if (pStorage->retrieve(keys, ptData, strSubError))
     {
-      bProcessed = true;
+      bDone = true;
+      if (ptData->m.find("Status") != ptData->m.end() && ptData->m["Status"]->v == "okay")
+      {
+        if (ptData->m.find("Password") != ptData->m.end() && ptData->m["Password"]->v == strPassword)
+        {
+          bProcessed = true;
+        }
+      }
+      else if (ptData->m.find("Error") != ptData->m.end() && !ptData->m["Error"]->v.empty())
+      {
+        strError = ptData->m["Error"]->v;
+      }
+      else
+      {
+        strError = "Encountered an unknown error.";
+      }
     }
     delete ptData;
     keys.clear();
-    if (!bProcessed)
+    if (!bDone)
     {
       ServiceJunction junction(strError);
       list<string> in, out;
@@ -132,14 +148,14 @@ int main(int argc, char *argv[])
       ptData->insert("Domain", strDomain);
       in.push_back(ptData->json(strJson));
       delete ptData;
+      keys.push_back(strUser);
+      ptData = new Json;
+      ptData->insert("_modified", ssCurrent.str(), 'n');
       if (junction.request(in, out, strError))
       {
         if (!out.empty())
         {
           Json *ptStatus = new Json(out.front());
-          keys.push_back(strUser);
-          ptData = new Json;
-          ptData->insert("_modified", ssCurrent.str(), 'n');
           if (ptStatus->m.find("Status") != ptStatus->m.end() && ptStatus->m["Status"]->v == "okay")
           {
             bProcessed = true;
@@ -153,17 +169,6 @@ int main(int argc, char *argv[])
           {
             strError = "Encountered an unknown error.";
           }
-          ptData->insert("Status", ((bProcessed)?"okay":"error"));
-          if (!strError.empty())
-          {
-            ptData->insert("Error", strError);
-          }
-          if (pStorage->add(keys, ptData, strError))
-          {
-            bUpdated = true;
-          }
-          delete ptData;
-          keys.clear();
           delete ptStatus;
         }
         else
@@ -173,6 +178,17 @@ int main(int argc, char *argv[])
       }
       in.clear();
       out.clear();
+      ptData->insert("Status", ((bProcessed)?"okay":"error"));
+      if (!strError.empty())
+      {
+        ptData->insert("Error", strError);
+      }
+      if (pStorage->add(keys, ptData, strError))
+      {
+        bUpdated = true;
+      }
+      delete ptData;
+      keys.clear();
     }
   }
   else

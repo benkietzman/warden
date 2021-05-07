@@ -102,7 +102,10 @@ int main(int argc, char *argv[])
         bProcessed = true;
         ptJson->m["Data"] = new Json;
         ptJson->m["Data"]->insert("central", ptCentral);
-        ptJson->m["Data"]->insert("authn", ptData);
+        if (!ptData->m.empty())
+        {
+          ptJson->m["Data"]->insert("authn", ptData);
+        }
       }
       delete ptCentral;
     }

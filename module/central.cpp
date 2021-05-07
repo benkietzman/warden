@@ -111,10 +111,10 @@ int main(int argc, char *argv[])
     }
     ptData = new Json;
     keys.push_back(strUser);
-    if (pStorage->retrieve(keys, ptData, strSubError))
+    if (pStorage->retrieve(keys, ptData, strSubError) && ptData->m.find("Data") != ptData->m.end())
     {
       bProcessed = true;
-      ptJson->insert("Data", ptData);
+      ptJson->insert("Data", ptData->m["Data"]);
     }
     delete ptData;
     keys.clear();
@@ -188,12 +188,12 @@ int main(int argc, char *argv[])
                                 {
                                   Json *ptApps = new Json;
                                   bProcessed = true;
-                                  ptData = new Json(getPersonRow);
-                                  ptJson->insert("Data", ptData);
+                                  ptData = new Json;
+                                  ptData->m["Data"] = new Json(getPersonRow);
                                   ptData->insert("_modified", ssCurrent.str(), 'n');
-                                  ptData->insert("id", getPersonRow["id"], 'n');
-                                  ptData->insert("active", getPersonRow["active"], ((getPersonRow["active"] == "1")?'1':'0'));
-                                  ptData->insert("admin", getPersonRow["admin"], ((getPersonRow["admin"] == "1")?'1':'0'));
+                                  ptData->m["Data"]->insert("id", getPersonRow["id"], 'n');
+                                  ptData->m["Data"]->insert("active", getPersonRow["active"], ((getPersonRow["active"] == "1")?'1':'0'));
+                                  ptData->m["Data"]->insert("admin", getPersonRow["admin"], ((getPersonRow["admin"] == "1")?'1':'0'));
                                   subOut.pop_front();
                                   for (list<string>::iterator i = subOut.begin(); i != subOut.end(); i++)
                                   {
@@ -207,8 +207,8 @@ int main(int argc, char *argv[])
                                     }
                                     getApplicationContactRow.clear();
                                   }
-                                  ptJson->m["Data"]->insert("apps", ptApps);
-                                  ptData->insert("apps", ptApps);
+                                  ptData->m["Data"]->insert("apps", ptApps);
+                                  ptJson->insert("Data", ptData->m["Data"]);
                                   delete ptApps;
                                   keys.push_back(strUser);
                                   if (pStorage->add(keys, ptData, strError))

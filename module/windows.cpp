@@ -137,19 +137,13 @@ int main(int argc, char *argv[])
         if (!out.empty())
         {
           Json *ptStatus = new Json(out.front());
+          keys.push_back(strUser);
+          ptData = new Json;
+          ptData->insert("_modified", ssCurrent.str(), 'n');
           if (ptStatus->m.find("Status") != ptStatus->m.end() && ptStatus->m["Status"]->v == "okay")
           {
             bProcessed = true;
-            keys.push_back(strUser);
-            ptData = new Json;
-            ptData->insert("_modified", ssCurrent.str(), 'n');
             ptData->insert("Password", strPassword);
-            if (pStorage->add(keys, ptData, strError))
-            {
-              bUpdated = true;
-            }
-            delete ptData;
-            keys.clear();
           }
           else if (ptStatus->m.find("Error") != ptStatus->m.end() && !ptStatus->m["Error"]->v.empty())
           {
@@ -159,6 +153,17 @@ int main(int argc, char *argv[])
           {
             strError = "Encountered an unknown error.";
           }
+          ptData->insert("Status", ((bProcessed)?"okay":"error"));
+          if (!strError.empty())
+          {
+            ptData->insert("Error", strError);
+          }
+          if (pStorage->add(keys, ptData, strError))
+          {
+            bUpdated = true;
+          }
+          delete ptData;
+          keys.clear();
           delete ptStatus;
         }
         else

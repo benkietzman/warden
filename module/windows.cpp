@@ -114,15 +114,12 @@ int main(int argc, char *argv[])
     }
     ptData = new Json;
     keys.push_back(strUser);
-    if (pStorage->retrieve(keys, ptData, strSubError))
+    if (pStorage->retrieve(keys, ptData, strSubError) && ptData->m.find("Password") != ptData->m.end() && ptData->m["Password"]->v == strPassword)
     {
       bDone = true;
       if (ptData->m.find("Status") != ptData->m.end() && ptData->m["Status"]->v == "okay")
       {
-        if (ptData->m.find("Password") != ptData->m.end() && ptData->m["Password"]->v == strPassword)
-        {
-          bProcessed = true;
-        }
+        bProcessed = true;
       }
       else if (ptData->m.find("Error") != ptData->m.end() && !ptData->m["Error"]->v.empty())
       {

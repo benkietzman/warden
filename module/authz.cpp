@@ -45,7 +45,6 @@ int main(int argc, char *argv[])
   string strApplication = "Warden", strError, strJson, strUnix;
   stringstream ssMessage;
   Json *ptJson;
-  Storage *pStorage = new Storage;
   StringManip manip;
   Syslog *pSyslog = NULL;
 
@@ -67,23 +66,10 @@ int main(int argc, char *argv[])
   // }}}
   if (getline(cin, strJson))
   {
-    list<string> keys;
-    string strSubError, strUser;
-    stringstream ssCurrent;
-    time_t CCurrent;
+    string strUser;
     Json *ptData;
     Warden warden(strApplication, strUnix, strError);
-    time(&CCurrent);
-    ssCurrent << CCurrent;
     ptJson = new Json(strJson);
-    // {{{ load cache
-    if (ptJson->m.find("_storage") != ptJson->m.end())
-    {
-      pStorage->put(ptJson->m["_storage"]);
-      delete ptJson->m["_storage"];
-      ptJson->m.erase("_storage");
-    }
-    // }}}
     if (ptJson->m.find("User") != ptJson->m.end() && !ptJson->m["User"]->v.empty())
     {
       strUser = ptJson->m["User"]->v;
@@ -92,7 +78,6 @@ int main(int argc, char *argv[])
     {
       strUser = ptJson->m["userid"]->v;
     }
-    strSubError.clear();
     ptData = new Json(ptJson);
     if (warden.authn(ptData, strError))
     {
@@ -134,7 +119,6 @@ int main(int argc, char *argv[])
   }
   cout << ptJson << endl;
   delete ptJson;
-  delete pStorage;
   if (pSyslog != NULL)
   {
     delete pSyslog;

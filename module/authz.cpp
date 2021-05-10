@@ -100,17 +100,17 @@ int main(int argc, char *argv[])
         bProcessed = true;
         ptJson->m["Data"]->insert("bridge", ptBridge);
       }
+      delete ptBridge;
       if (warden.central(strUser, ptCentral, strSubError))
       {
         bProcessed = true;
         ptJson->m["Data"]->insert("central", ptCentral);
       }
+      delete ptCentral;
       if (!bProcessed)
       {
         strError = strSubError;
       }
-      delete ptBridge;
-      delete ptCentral;
     }
     delete ptData;
     if (pSyslog != NULL)

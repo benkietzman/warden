@@ -102,7 +102,7 @@ int main(int argc, char *argv[])
     {
       strError = strSubError;
     }
-    else if (warden.password(strUser, strPassword, strSubError) || warden.windows(strUser, strPassword, strSubError))
+    else if (warden.bridge(strUser, strPassword, strSubError) || warden.password(strUser, strPassword, strSubError) || warden.windows(strUser, strPassword, strSubError))
     {
       bProcessed = true;
     }

@@ -65,10 +65,18 @@ int main(int argc, char *argv[])
   // }}}
   if (getline(cin, strJson))
   {
-    string strUser;
+    string strPassword, strUser;
     Json *ptData;
     Warden warden(strApplication, strUnix, strError);
     ptJson = new Json(strJson);
+    if (ptJson->m.find("Password") != ptJson->m.end() && !ptJson->m["Password"]->v.empty())
+    {
+      strPassword = ptJson->m["Password"]->v;
+    }
+    else if (ptJson->m.find("password") != ptJson->m.end() && !ptJson->m["password"]->v.empty())
+    {
+      strPassword = ptJson->m["password"]->v;
+    }
     if (ptJson->m.find("User") != ptJson->m.end() && !ptJson->m["User"]->v.empty())
     {
       strUser = ptJson->m["User"]->v;
@@ -80,17 +88,28 @@ int main(int argc, char *argv[])
     ptData = new Json(ptJson);
     if (warden.authn(ptData, strError))
     {
-      Json *ptCentral = new Json;
-      if (warden.central(strUser, ptCentral, strError))
+      string strSubError;
+      Json *ptBridge = new Json, *ptCentral = new Json;
+      ptJson->m["Data"] = new Json;
+      if (!ptData->m.empty())
+      {
+        ptJson->m["Data"]->insert("authn", ptData);
+      }
+      if (warden.bridge(strUser, strPassword, ptBridge, strSubError))
       {
         bProcessed = true;
-        ptJson->m["Data"] = new Json;
-        ptJson->m["Data"]->insert("central", ptCentral);
-        if (!ptData->m.empty())
-        {
-          ptJson->m["Data"]->insert("authn", ptData);
-        }
+        ptJson->m["Data"]->insert("bridge", ptBridge);
       }
+      if (warden.central(strUser, ptCentral, strSubError))
+      {
+        bProcessed = true;
+        ptJson->m["Data"]->insert("central", ptCentral);
+      }
+      if (!bProcessed)
+      {
+        strError = strSubError;
+      }
+      delete ptBridge;
       delete ptCentral;
     }
     delete ptData;

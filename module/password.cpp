@@ -200,7 +200,7 @@ int main(int argc, char *argv[])
         }
         keys.push_back(strApplication);
         keys.push_back(strUser);
-        if (pStorage->add(keys, ptStore, strError))
+        if (pStorage->add(keys, ptStore, strSubError))
         {
           bUpdated = true;
         }

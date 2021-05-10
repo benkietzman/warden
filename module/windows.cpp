@@ -180,7 +180,7 @@ int main(int argc, char *argv[])
         ptStore->insert("Error", strError);
       }
       keys.push_back(strUser);
-      if (pStorage->add(keys, ptStore, strError))
+      if (pStorage->add(keys, ptStore, strSubError))
       {
         bUpdated = true;
       }

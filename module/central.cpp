@@ -62,6 +62,7 @@ int main(int argc, char *argv[])
   // }}}
   if (getline(cin, strJson))
   {
+    bool bDone = false;
     list<string> keys;
     string strApplication, strPassword, strSubError, strType, strUser;
     Json *ptData;
@@ -111,20 +112,39 @@ int main(int argc, char *argv[])
     }
     ptData = new Json;
     keys.push_back(strUser);
-    if (pStorage->retrieve(keys, ptData, strSubError) && ptData->m.find("Data") != ptData->m.end())
+    if (pStorage->retrieve(keys, ptData, strSubError))
     {
-      bProcessed = true;
-      ptJson->insert("Data", ptData->m["Data"]);
+      bDone = true;
+      if (ptData->m.find("Status") != ptData->m.end() && ptData->m["Status"]->v == "okay")
+      {
+        if (ptData->m.find("Data") != ptData->m.end())
+        {
+          bProcessed = true;
+          ptJson->insert("Data", ptData->m["Data"]);
+        }
+        else
+        {
+          strError = "Failed to parse Data.";
+        }
+      }
+      else if (ptData->m.find("Error") != ptData->m.end() && !ptData->m["Error"]->v.empty())
+      {
+        strError = ptData->m["Error"]->v;
+      }
+      else
+      {
+        strError = "Encountered an unknown error.";
+      }
     }
     delete ptData;
     keys.clear();
-    if (!bProcessed)
+    if (!bDone)
     {
-      list<string> subKeys;
-      Json *ptConf = new Json;
+      Json *ptConf = new Json, *ptStore = new Json;
       Warden warden("Central", strUnix, strError);
-      subKeys.push_back("conf");
-      if (warden.vaultRetrieve(subKeys, ptConf, strError))
+      ptData->insert("_modified", ssCurrent.str(), 'n');
+      keys.push_back("conf");
+      if (warden.vaultRetrieve(keys, ptConf, strError))
       {
         if (ptConf->m.find("Database") != ptConf->m.end() && !ptConf->m["Database"]->v.empty())
         {
@@ -188,12 +208,10 @@ int main(int argc, char *argv[])
                                 {
                                   Json *ptApps = new Json;
                                   bProcessed = true;
-                                  ptData = new Json;
-                                  ptData->m["Data"] = new Json(getPersonRow);
-                                  ptData->insert("_modified", ssCurrent.str(), 'n');
-                                  ptData->m["Data"]->insert("id", getPersonRow["id"], 'n');
-                                  ptData->m["Data"]->insert("active", getPersonRow["active"], ((getPersonRow["active"] == "1")?'1':'0'));
-                                  ptData->m["Data"]->insert("admin", getPersonRow["admin"], ((getPersonRow["admin"] == "1")?'1':'0'));
+                                  ptStore->m["Data"] = new Json(getPersonRow);
+                                  ptStore->m["Data"]->insert("id", getPersonRow["id"], 'n');
+                                  ptStore->m["Data"]->insert("active", getPersonRow["active"], ((getPersonRow["active"] == "1")?'1':'0'));
+                                  ptStore->m["Data"]->insert("admin", getPersonRow["admin"], ((getPersonRow["admin"] == "1")?'1':'0'));
                                   subOut.pop_front();
                                   for (list<string>::iterator i = subOut.begin(); i != subOut.end(); i++)
                                   {
@@ -207,16 +225,9 @@ int main(int argc, char *argv[])
                                     }
                                     getApplicationContactRow.clear();
                                   }
-                                  ptData->m["Data"]->insert("apps", ptApps);
-                                  ptJson->insert("Data", ptData->m["Data"]);
+                                  ptStore->m["Data"]->insert("apps", ptApps);
+                                  ptJson->insert("Data", ptStore->m["Data"]);
                                   delete ptApps;
-                                  keys.push_back(strUser);
-                                  if (pStorage->add(keys, ptData, strError))
-                                  {
-                                    bUpdated = true;
-                                  }
-                                  delete ptData;
-                                  keys.clear();
                                 }
                                 else if (ptSubStatus->m.find("Error") != ptSubStatus->m.end() && !ptSubStatus->m["Error"]->v.empty())
                                 {
@@ -291,7 +302,19 @@ int main(int argc, char *argv[])
         }
       }
       delete ptConf;
-      subKeys.clear();
+      keys.clear();
+      ptStore->insert("Status", ((bProcessed)?"okay":"error"));
+      if (!strError.empty())
+      {
+        ptStore->insert("Error", strError);
+      }
+      keys.push_back(strUser);
+      if (pStorage->add(keys, ptStore, strError))
+      {
+        bUpdated = true;
+      }
+      delete ptStore;
+      keys.clear();
     }
   }
   else

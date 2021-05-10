@@ -62,6 +62,7 @@ int main(int argc, char *argv[])
   // }}}
   if (getline(cin, strJson))
   {
+    bool bDone = false;
     list<string> keys;
     string strApplication, strPassword, strSubError, strType, strUser;
     stringstream ssCurrent;
@@ -129,14 +130,28 @@ int main(int argc, char *argv[])
       keys.push_back(strUser);
       if (pStorage->retrieve(keys, ptData, strSubError) && (strType.empty() || (ptData->m.find("Type") != ptData->m.end() && ptData->m["Type"]->v == strType)) && ptData->m.find("Password") != ptData->m.end() && ptData->m["Password"]->v == strPassword)
       {
-        bProcessed = true;
+        bDone = true;
+        if (ptData->m.find("Status") != ptData->m.end() && ptData->m["Status"]->v == "okay")
+        {
+          bProcessed = true;
+        }
+        else if (ptData->m.find("Error") != ptData->m.end() && !ptData->m["Error"]->v.empty())
+        {
+          strError = ptData->m["Error"]->v;
+        }
+        else
+        {
+          strError = "Encountered an unknown error.";
+        }
       }
       delete ptData;
       keys.clear();
-      if (!bProcessed)
+      if (!bDone)
       {
         list<string> in, out;
+        Json *ptStore = new Json;
         ServiceJunction junction(strError);
+        ptStore->insert("_modified", ssCurrent.str(), 'n');
         junction.setApplication("Warden");
         ptData = new Json;
         ptData->insert("Service", "password");
@@ -155,21 +170,11 @@ int main(int argc, char *argv[])
             if (ptStatus->m.find("Status") != ptStatus->m.end() && ptStatus->m["Status"]->v == "okay")
             {
               bProcessed = true;
-              keys.push_back(strApplication);
-              keys.push_back(strUser);
-              ptData = new Json;
-              ptData->insert("_modified", ssCurrent.str(), 'n');
               if (!strType.empty())
               {
-                ptData->insert("Type", strType);
+                ptStore->insert("Type", strType);
               }
-              ptData->insert("Password", strPassword);
-              if (pStorage->add(keys, ptData, strError))
-              {
-                bUpdated = true;
-              }
-              delete ptData;
-              keys.clear();
+              ptStore->insert("Password", strPassword);
             }
             else if (ptStatus->m.find("Error") != ptStatus->m.end() && !ptStatus->m["Error"]->v.empty())
             {
@@ -188,6 +193,19 @@ int main(int argc, char *argv[])
         }
         in.clear();
         out.clear();
+        ptStore->insert("Status", ((bProcessed)?"okay":"error"));
+        if (!strError.empty())
+        {
+          ptStore->insert("Error", strError);
+        }
+        keys.push_back(strApplication);
+        keys.push_back(strUser);
+        if (pStorage->add(keys, ptStore, strError))
+        {
+          bUpdated = true;
+        }
+        keys.clear();
+        delete ptStore;
       }
     }
     else
@@ -196,17 +214,29 @@ int main(int argc, char *argv[])
       keys.push_back(strUser);
       if (pStorage->retrieve(keys, ptData, strSubError) && ptData->m.find("Password") != ptData->m.end() && ptData->m["Password"]->v == strPassword)
       {
-        bProcessed = true;
+        bDone = true;
+        if (ptData->m.find("Status") != ptData->m.end() && ptData->m["Status"]->v == "okay")
+        {
+          bProcessed = true;
+        }
+        else if (ptData->m.find("Error") != ptData->m.end() && !ptData->m["Error"]->v.empty())
+        {
+          strError = ptData->m["Error"]->v;
+        }
+        else
+        {
+          strError = "Encountered an unknown error.";
+        }
       }
       delete ptData;
       keys.clear();
-      if (!bProcessed)
+      if (!bDone)
       {
-        list<string> subKeys;
-        Json *ptConf = new Json;
+        Json *ptConf = new Json, *ptStore = new Json;
         Warden warden("Central", strUnix, strError);
-        subKeys.push_back("conf");
-        if (warden.vaultRetrieve(subKeys, ptConf, strError))
+        ptStore->insert("_modified", ssCurrent.str(), 'n');
+        keys.push_back("conf");
+        if (warden.vaultRetrieve(keys, ptConf, strError))
         {
           if (ptConf->m.find("Database") != ptConf->m.end() && !ptConf->m["Database"]->v.empty())
           {
@@ -242,16 +272,7 @@ int main(int argc, char *argv[])
                         if (out.size() > 1)
                         {
                           bProcessed = true;
-                          keys.push_back(strUser);
-                          ptData = new Json;
-                          ptData->insert("_modified", ssCurrent.str(), 'n');
-                          ptData->insert("Password", strPassword);
-                          if (pStorage->add(keys, ptData, strError))
-                          {
-                            bUpdated = true;
-                          }
-                          delete ptData;
-                          keys.clear();
+                          ptStore->insert("Password", strPassword);
                         }
                         else
                         {
@@ -297,7 +318,19 @@ int main(int argc, char *argv[])
           }
         }
         delete ptConf;
-        subKeys.clear();
+        keys.clear();
+        ptStore->insert("Status", ((bProcessed)?"okay":"error"));
+        if (!strError.empty())
+        {
+          ptStore->insert("Error", strError);
+        }
+        keys.push_back(strUser);
+        if (pStorage->add(keys, ptStore, strError))
+        {
+          bUpdated = true;
+        }
+        keys.clear();
+        delete ptStore;
       }
     }
   }

@@ -136,6 +136,8 @@ int main(int argc, char *argv[])
     {
       ServiceJunction junction(strError);
       list<string> in, out;
+      Json *ptStore = new Json;
+      ptStore->insert("_modified", ssCurrent.str(), 'n');
       ptData = new Json;
       junction.setApplication("Warden");
       ptData->insert("Service", "samba");
@@ -145,9 +147,6 @@ int main(int argc, char *argv[])
       ptData->insert("Domain", strDomain);
       in.push_back(ptData->json(strJson));
       delete ptData;
-      keys.push_back(strUser);
-      ptData = new Json;
-      ptData->insert("_modified", ssCurrent.str(), 'n');
       if (junction.request(in, out, strError))
       {
         if (!out.empty())
@@ -156,7 +155,7 @@ int main(int argc, char *argv[])
           if (ptStatus->m.find("Status") != ptStatus->m.end() && ptStatus->m["Status"]->v == "okay")
           {
             bProcessed = true;
-            ptData->insert("Password", strPassword);
+            ptStore->insert("Password", strPassword);
           }
           else if (ptStatus->m.find("Error") != ptStatus->m.end() && !ptStatus->m["Error"]->v.empty())
           {
@@ -175,17 +174,18 @@ int main(int argc, char *argv[])
       }
       in.clear();
       out.clear();
-      ptData->insert("Status", ((bProcessed)?"okay":"error"));
+      ptStore->insert("Status", ((bProcessed)?"okay":"error"));
       if (!strError.empty())
       {
-        ptData->insert("Error", strError);
+        ptStore->insert("Error", strError);
       }
-      if (pStorage->add(keys, ptData, strError))
+      keys.push_back(strUser);
+      if (pStorage->add(keys, ptStore, strError))
       {
         bUpdated = true;
       }
-      delete ptData;
       keys.clear();
+      delete ptStore;
     }
   }
   else

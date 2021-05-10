@@ -142,7 +142,7 @@ int main(int argc, char *argv[])
     {
       Json *ptConf = new Json, *ptStore = new Json;
       Warden warden("Central", strUnix, strError);
-      ptData->insert("_modified", ssCurrent.str(), 'n');
+      ptStore->insert("_modified", ssCurrent.str(), 'n');
       keys.push_back("conf");
       if (warden.vaultRetrieve(keys, ptConf, strError))
       {

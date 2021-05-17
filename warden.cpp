@@ -41,6 +41,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/un.h>
+#include <thread>
 #include <unistd.h>
 using namespace std;
 #include <Central>
@@ -133,6 +134,14 @@ void sighandle(const int nSignal);
 * \param strError Returns an error.
 */
 bool storage(const string strAction, list<string> keys, Json *ptData, string &strError);
+/*! \fn void storageRequest(string strPrefix, int *pfdData, Storage *pStorage)
+* \brief Processes a storage request.
+* \param strPrefix Contains the function prefix.
+* \param fdData Contains the socket.
+* \param pStorage Contains the storage.
+* \param  Contains the socket.
+*/
+void storageRequest(string strPrefix, int *pfdData, Storage *pStorage);
 // }}}
 // {{{ main()
 /*! \fn int main(int argc, char *argv[])
@@ -703,7 +712,7 @@ int main(int argc, char *argv[])
       // {{{ storage
       else if (nStoragePid == 0)
       {
-        int fdUnix = -1, nReturn;
+        int fdUnix = -1;
         gpCentral->file()->remove((gstrData + STORAGE_SOCKET).c_str());
         if ((fdUnix = socket(AF_UNIX, SOCK_STREAM, 0)) >= 0)
         {
@@ -734,102 +743,9 @@ int main(int argc, char *argv[])
               Storage *pStorage = new Storage;
               while (!gbShutdown && (fdData = accept(fdUnix, (struct sockaddr *)&cli_addr, &clilen)) >= 0)
               {
-                bool bExit = false;
-                char szBuffer[65536];
-                size_t unPosition;
-                string strBuffer[2], strJson;
-                while (!bExit)
-                {
-                  pollfd fds[1];
-                  fds[0].fd = fdData;
-                  fds[0].events = POLLIN;
-                  if (!strBuffer[1].empty())
-                  {
-                    fds[0].events |= POLLOUT;
-                  }
-                  if ((nReturn = poll(fds, 1, 2000)) > 0)
-                  {
-                    // {{{ read
-                    if (fds[0].revents & POLLIN)
-                    {
-                      if ((nReturn = read(fdData, szBuffer, 65536)) > 0)
-                      {
-                        strBuffer[0].append(szBuffer, nReturn);
-                        while ((unPosition = strBuffer[0].find("\n")) != string::npos)
-                        {
-                          bool bProcessed = false;
-                          Json *ptJson = new Json(strBuffer[0].substr(0, unPosition));
-                          strBuffer[0].erase(0, (unPosition + 1));
-                          strError.clear();
-                          if (ptJson->m.find("Action") != ptJson->m.end() && !ptJson->m["Action"]->v.empty())
-                          {
-                            list<string> keys;
-                            Json *ptData;
-                            if (ptJson->m.find("Keys") != ptJson->m.end())
-                            {
-                              for (list<Json *>::iterator i = ptJson->m["Keys"]->l.begin(); i != ptJson->m["Keys"]->l.end(); i++)
-                              {
-                                keys.push_back((*i)->v);
-                              }
-                            }
-                            if (ptJson->m.find("Data") != ptJson->m.end())
-                            {
-                              ptData = new Json(ptJson->m["Data"]);
-                            }
-                            else
-                            {
-                              ptData = new Json;
-                            }
-                            if (pStorage->request(ptJson->m["Action"]->v, keys, ptData, strError))
-                            {
-                              bProcessed = true;
-                              ptJson->insert("Data", ptData);
-                            }
-                            keys.clear();
-                            delete ptData;
-                          }
-                          else
-                          {
-                            strError = "Please provide the Action.";
-                          }
-                          ptJson->insert("Status", ((bProcessed)?"okay":"error"));
-                          if (!strError.empty())
-                          {
-                            ptJson->insert("Error", strError);
-                          }
-                          strBuffer[1].append(ptJson->json(strJson)+"\n");
-                          delete ptJson;
-                        }
-                      }
-                      else
-                      {
-                        bExit = true;
-                      }
-                    }
-                    // }}}
-                    // {{{ write
-                    if (fds[0].revents & POLLOUT)
-                    {
-                      if ((nReturn = write(fdData, strBuffer[1].c_str(), strBuffer[1].size())) > 0)
-                      {
-                        strBuffer[1].erase(0, nReturn);
-                      }
-                      else
-                      {
-                        bExit = true;
-                      }
-                    }
-                    // }}}
-                  }
-                  else if (nReturn < 0)
-                  {
-                    bExit = true;
-                    ssMessage.str("");
-                    ssMessage << strPrefix << "->poll(" << errno << ") error:  " << strerror(errno);
-                    gpCentral->log(ssMessage.str());
-                  }
-                }
-                close(fdData);
+                int *pfdData = new int(fdData);
+                thread threadRequest(storageRequest, strPrefix, pfdData, pStorage);
+                threadRequest.detach();
               }
               if (!gbShutdown)
               {
@@ -1034,5 +950,111 @@ bool storage(const string strAction, list<string> keys, Json *ptData, string &st
   }
 
   return bResult;
+}
+// }}}
+// {{{ storageRequest()
+void storageRequest(string strPrefix, int *pfdData, Storage *pStorage)
+{
+  bool bExit = false;
+  char szBuffer[65536];
+  int nReturn;
+  size_t unPosition;
+  string strBuffer[2], strError, strJson;
+  stringstream ssMessage;
+
+  strPrefix += "->storageRequest()";
+  while (!bExit)
+  {
+    pollfd fds[1];
+    fds[0].fd = (*pfdData);
+    fds[0].events = POLLIN;
+    if (!strBuffer[1].empty())
+    {
+      fds[0].events |= POLLOUT;
+    }
+    if ((nReturn = poll(fds, 1, 2000)) > 0)
+    {
+      // {{{ read
+      if (fds[0].revents & POLLIN)
+      {
+        if ((nReturn = read(fds[0].fd, szBuffer, 65536)) > 0)
+        {
+          strBuffer[0].append(szBuffer, nReturn);
+          while ((unPosition = strBuffer[0].find("\n")) != string::npos)
+          {
+            bool bProcessed = false;
+            Json *ptJson = new Json(strBuffer[0].substr(0, unPosition));
+            strBuffer[0].erase(0, (unPosition + 1));
+            strError.clear();
+            if (ptJson->m.find("Action") != ptJson->m.end() && !ptJson->m["Action"]->v.empty())
+            {
+              list<string> keys;
+              Json *ptData;
+              if (ptJson->m.find("Keys") != ptJson->m.end())
+              {
+                for (list<Json *>::iterator i = ptJson->m["Keys"]->l.begin(); i != ptJson->m["Keys"]->l.end(); i++)
+                {
+                  keys.push_back((*i)->v);
+                }
+              }
+              if (ptJson->m.find("Data") != ptJson->m.end())
+              {
+                ptData = new Json(ptJson->m["Data"]);
+              }
+              else
+              {
+                ptData = new Json;
+              }
+              if (pStorage->request(ptJson->m["Action"]->v, keys, ptData, strError))
+              {
+                bProcessed = true;
+                ptJson->insert("Data", ptData);
+              }
+              keys.clear();
+              delete ptData;
+            }
+            else
+            {
+              strError = "Please provide the Action.";
+            }
+            ptJson->insert("Status", ((bProcessed)?"okay":"error"));
+            if (!strError.empty())
+            {
+              ptJson->insert("Error", strError);
+            }
+            strBuffer[1].append(ptJson->json(strJson)+"\n");
+            delete ptJson;
+          }
+        }
+        else
+        {
+          bExit = true;
+        }
+      }
+      // }}}
+      // {{{ write
+      if (fds[0].revents & POLLOUT)
+      {
+        if ((nReturn = write(fds[0].fd, strBuffer[1].c_str(), strBuffer[1].size())) > 0)
+        {
+          strBuffer[1].erase(0, nReturn);
+        }
+        else
+        {
+          bExit = true;
+        }
+      }
+      // }}}
+    }
+    else if (nReturn < 0)
+    {
+      bExit = true;
+      ssMessage.str("");
+      ssMessage << strPrefix << "->poll(" << errno << ") error:  " << strerror(errno);
+      gpCentral->log(ssMessage.str());
+    }
+  }
+  close(*pfdData);
+  delete pfdData;
 }
 // }}}

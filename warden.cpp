@@ -36,7 +36,6 @@
 #include <iostream>
 #include <mutex>
 #include <poll.h>
-#include <semaphore.h>
 #include <sstream>
 #include <string>
 #include <sys/socket.h>
@@ -114,13 +113,11 @@ struct connection
 extern char **environ;
 static bool gbDaemon = false; //!< Global daemon variable.
 static bool gbShutdown = false; //!< Global shutdown variable.
-static int gfdStorage = -1; //!< Global storage socket.
 static string gstrApplication = "Warden"; //!< Global application name.
 static string gstrData = "/data/warden"; //!< Global data path.
 static string gstrEmail; //!< Global notification email address.
 static Central *gpCentral = NULL; //!< Contains the Central class.
 static Syslog *gpSyslog = NULL; //!< Contains the Syslog class.
-sem_t gsemStorage; //!< Contains the storage semaphore.
 // }}}
 // {{{ prototypes
 /*! \fn void sighandle(const int nSignal)
@@ -229,7 +226,6 @@ int main(int argc, char *argv[])
       outPid.close();
       ofstream outStart((gstrData + START).c_str());
       outStart.close();
-      sem_init(&gsemStorage, 0, 1);
       // {{{ process
       if ((nStoragePid = fork()) > 0)
       {
@@ -881,11 +877,6 @@ int main(int argc, char *argv[])
         gpCentral->alert(ssMessage.str());
       }
       // }}}
-      sem_destroy(&gsemStorage);
-      if (gfdStorage != -1)
-      {
-        close(gfdStorage);
-      }
       // {{{ check pid file
       if (gpCentral->file()->fileExist((gstrData + PID).c_str()))
       {
@@ -930,132 +921,122 @@ void sighandle(const int nSignal)
 bool storage(const string strAction, list<string> keys, Json *ptData, string &strError)
 {
   bool bResult = false;
-  int nReturn;
+  int fdUnix = -1, nReturn;
 
-  sem_wait(&gsemStorage);
-  if (gfdStorage == -1)
+  if ((fdUnix = socket(AF_UNIX, SOCK_STREAM, 0)) >= 0)
   {
-    if ((gfdStorage = socket(AF_UNIX, SOCK_STREAM, 0)) >= 0)
+    sockaddr_un addr;
+    memset(&addr, 0, sizeof(sockaddr_un));
+    addr.sun_family = AF_UNIX;
+    strncpy(addr.sun_path, (gstrData + STORAGE_SOCKET).c_str(), sizeof(addr.sun_path) - 1);
+    if (connect(fdUnix, (sockaddr *)&addr, sizeof(sockaddr_un)) == 0)
     {
-      sockaddr_un addr;
-      memset(&addr, 0, sizeof(sockaddr_un));
-      addr.sun_family = AF_UNIX;
-      strncpy(addr.sun_path, (gstrData + STORAGE_SOCKET).c_str(), sizeof(addr.sun_path) - 1);
-      if (connect(gfdStorage, (sockaddr *)&addr, sizeof(sockaddr_un)) != 0)
+      bool bExit = false;
+      char szBuffer[65536];
+      size_t unPosition;
+      string strBuffer[2], strJson;
+      Json *ptJson = new Json;
+      ptJson->insert("Action", strAction);
+      ptJson->insert("Keys", keys);
+      if (ptData != NULL)
       {
-        stringstream ssError;
-        gfdStorage = -1;
-        ssError << "connect(" << errno << ") " << strerror(errno);
-        strError = ssError.str();
+        ptJson->insert("Data", ptData);
+      }
+      ptJson->json(strBuffer[1]);
+      delete ptJson;
+      strBuffer[1].append("\n");
+      while (!bExit)
+      {
+        pollfd fds[1];
+        fds[0].fd = fdUnix;
+        fds[0].events = POLLIN;
+        if (!strBuffer[1].empty())
+        {
+          fds[0].events |= POLLOUT;
+        }
+        if ((nReturn = poll(fds, 1, 250)) > 0)
+        {
+          if (fds[0].fd == fdUnix && (fds[0].revents & POLLIN))
+          {
+            if ((nReturn = read(fdUnix, szBuffer, 65536)) > 0)
+            {
+              strBuffer[0].append(szBuffer, nReturn);
+              if ((unPosition = strBuffer[0].find("\n")) != string::npos)
+              {
+                bExit = true;
+                ptJson = new Json(strBuffer[0].substr(0, unPosition));
+                strBuffer[0].erase(0, unPosition + 1);
+                if (ptJson->m.find("Status") != ptJson->m.end() && ptJson->m["Status"]->v == "okay")
+                {
+                  bResult = true;
+                  if (ptData != NULL && ptJson->m.find("Data") != ptJson->m.end())
+                  {
+                    ptData->parse(ptJson->m["Data"]->json(strJson));
+                  }
+                }
+                else if (ptJson->m.find("Error") != ptJson->m.end() && !ptJson->m["Error"]->v.empty())
+                {
+                  strError = ptJson->m["Error"]->v;
+                }
+                else
+                {
+                  strError = "Encountered an unknown error.";
+                }
+                delete ptJson;
+              }
+            }
+            else
+            {
+              bExit = true;
+              if (nReturn < 0)
+              {
+                stringstream ssError;
+                ssError << "read(" << errno << ") " << strerror(errno);
+                strError = ssError.str();
+              }
+            }
+          }
+          if (fds[0].fd == fdUnix && (fds[0].revents & POLLOUT))
+          {
+            if ((nReturn = write(fdUnix, strBuffer[1].c_str(), strBuffer[1].size())) > 0)
+            {
+              strBuffer[1].erase(0, nReturn);
+            }
+            else
+            {
+              bExit = true;
+              if (nReturn < 0)
+              {
+                stringstream ssError;
+                ssError << "write(" << errno << ") " << strerror(errno);
+                strError = ssError.str();
+              }
+            }
+          }
+        }
+        else if (nReturn < 0)
+        {
+          stringstream ssError;
+          bExit = true;
+          ssError << "poll(" << errno << ") " << strerror(errno);
+          strError = ssError.str();
+        }
       }
     }
     else
     {
       stringstream ssError;
-      ssError << "socket(" << errno << ") " << strerror(errno);
+      ssError << "connect(" << errno << ") " << strerror(errno);
       strError = ssError.str();
     }
+    close(fdUnix);
   }
-  if (gfdStorage != -1)
+  else
   {
-    bool bClose = false, bExit = false;
-    char szBuffer[65536];
-    size_t unPosition;
-    string strBuffer[2], strJson;
-    Json *ptJson = new Json;
-    ptJson->insert("Action", strAction);
-    ptJson->insert("Keys", keys);
-    if (ptData != NULL)
-    {
-      ptJson->insert("Data", ptData);
-    }
-    ptJson->json(strBuffer[1]);
-    delete ptJson;
-    strBuffer[1].append("\n");
-    while (!bExit)
-    {
-      pollfd fds[1];
-      fds[0].fd = gfdStorage;
-      fds[0].events = POLLIN;
-      if (!strBuffer[1].empty())
-      {
-        fds[0].events |= POLLOUT;
-      }
-      if ((nReturn = poll(fds, 1, 250)) > 0)
-      {
-        if (fds[0].revents & POLLIN)
-        {
-          if ((nReturn = read(fds[0].fd, szBuffer, 65536)) > 0)
-          {
-            strBuffer[0].append(szBuffer, nReturn);
-            if ((unPosition = strBuffer[0].find("\n")) != string::npos)
-            {
-              bExit = true;
-              ptJson = new Json(strBuffer[0].substr(0, unPosition));
-              strBuffer[0].erase(0, unPosition + 1);
-              if (ptJson->m.find("Status") != ptJson->m.end() && ptJson->m["Status"]->v == "okay")
-              {
-                bResult = true;
-                if (ptData != NULL && ptJson->m.find("Data") != ptJson->m.end())
-                {
-                  ptData->parse(ptJson->m["Data"]->json(strJson));
-                }
-              }
-              else if (ptJson->m.find("Error") != ptJson->m.end() && !ptJson->m["Error"]->v.empty())
-              {
-                strError = ptJson->m["Error"]->v;
-              }
-              else
-              {
-                strError = "Encountered an unknown error.";
-              }
-              delete ptJson;
-            }
-          }
-          else
-          {
-            bClose = bExit = true;
-            if (nReturn < 0)
-            {
-              stringstream ssError;
-              ssError << "read(" << errno << ") " << strerror(errno);
-              strError = ssError.str();
-            }
-          }
-        }
-        if (fds[0].revents & POLLOUT)
-        {
-          if ((nReturn = write(fds[0].fd, strBuffer[1].c_str(), strBuffer[1].size())) > 0)
-          {
-            strBuffer[1].erase(0, nReturn);
-          }
-          else
-          {
-            bClose = bExit = true;
-            if (nReturn < 0)
-            {
-              stringstream ssError;
-              ssError << "write(" << errno << ") " << strerror(errno);
-              strError = ssError.str();
-            }
-          }
-        }
-      }
-      else if (nReturn < 0)
-      {
-        stringstream ssError;
-        bClose = bExit = true;
-        ssError << "poll(" << errno << ") " << strerror(errno);
-        strError = ssError.str();
-      }
-    }
-    if (bClose)
-    {
-      close(gfdStorage);
-      gfdStorage = -1;
-    }
+    stringstream ssError;
+    ssError << "socket(" << errno << ") " << strerror(errno);
+    strError = ssError.str();
   }
-  sem_post(&gsemStorage);
 
   return bResult;
 }

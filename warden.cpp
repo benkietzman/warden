@@ -260,11 +260,6 @@ int main(int argc, char *argv[])
               clilen = sizeof(cli_addr);
               while (!gbShutdown && (fdData = accept(fdUnix, (struct sockaddr *)&cli_addr, &clilen)) >= 0)
               {
-                if (gpCentral->file()->fileExist(gstrData + "/.shutdown"))
-                {
-                  gpCentral->file()->remove(gstrData + "/.shutdown");
-                  gbShutdown = true;
-                }
                 // {{{ reload module configuration
                 if (!gpCentral->file()->fileExist(gstrData + (string)"/.lock"))
                 {
@@ -676,9 +671,6 @@ int main(int argc, char *argv[])
               {
                 gbShutdown = true;
               }
-              ssMessage.str("");
-              ssMessage << strPrefix << ":  Lost connection to the socket!  Exiting...";
-              gpCentral->alert(ssMessage.str());
             }
             else
             {
@@ -705,6 +697,7 @@ int main(int argc, char *argv[])
           gpCentral->alert(ssMessage.str());
         }
         gpCentral->file()->remove((gstrData + UNIX_SOCKET).c_str());
+        kill(nStoragePid, SIGTERM);
       }
       // }}}
       // {{{ storage
@@ -745,11 +738,6 @@ int main(int argc, char *argv[])
                 char szBuffer[65536];
                 size_t unPosition;
                 string strBuffer[2], strJson;
-                if (gpCentral->file()->fileExist(gstrData + "/.shutdown"))
-                {
-                  gpCentral->file()->remove(gstrData + "/.shutdown");
-                  gbShutdown = true;
-                }
                 while (!bExit)
                 {
                   pollfd fds[1];
@@ -848,9 +836,6 @@ int main(int argc, char *argv[])
                 gbShutdown = true;
               }
               delete pStorage;
-              ssMessage.str("");
-              ssMessage << strPrefix << ":  Lost connection to the storage socket!  Exiting...";
-              gpCentral->alert(ssMessage.str());
             }
             else
             {

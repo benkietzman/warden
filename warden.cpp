@@ -364,7 +364,7 @@ int main(int argc, char *argv[])
                       }
                       unfdSize++;
                     }
-                    if ((nReturn = poll(fds, unfdSize, 2000)) > 0)
+                    if ((nReturn = poll(fds, unfdSize, 250)) > 0)
                     {
                       for (size_t unfdIndex = 0; unfdIndex < unfdSize; unfdIndex++)
                       {
@@ -722,49 +722,68 @@ int main(int argc, char *argv[])
             chmod((gstrData + STORAGE_SOCKET).c_str(), 00700);
             if (listen(fdUnix, SOMAXCONN) == 0)
             {
-              int fdData;
-              string strSystem;
-              sockaddr_un cli_addr;
-              socklen_t clilen = sizeof(cli_addr);
-              map<string, map<string, string> > module;
+              bool bExit = false;
+              char szBuffer[65536];
+              map<int, vector<string> > clients;
+              list<int> removals;
+              pollfd *fds;
+              size_t unIndex, unPosition;
+              string strJson;
+              Storage *pStorage = new Storage;
               ssMessage.str("");
               ssMessage << strPrefix << "->listen():  Listening to the storage socket.";
               gpCentral->log(ssMessage.str());
-              clilen = sizeof(cli_addr);
-              Storage *pStorage = new Storage;
-              while (!gbShutdown && (fdData = accept(fdUnix, (struct sockaddr *)&cli_addr, &clilen)) >= 0)
+              if (gpCentral->file()->fileExist(gstrData + "/.shutdown"))
               {
-                bool bExit = false;
-                char szBuffer[65536];
-                size_t unPosition;
-                string strBuffer[2], strJson;
-                if (gpCentral->file()->fileExist(gstrData + "/.shutdown"))
+                gpCentral->file()->remove(gstrData + "/.shutdown");
+                gbShutdown = true;
+              }
+              while (!gbShutdown && !bExit)
+              {
+                fds = new pollfd[clients.size()+1];
+                unIndex = 0;
+                fds[unIndex].fd = fdUnix;
+                fds[unIndex].events = POLLIN;
+                unIndex++;
+                for (map<int, vector<string> >::iterator i = clients.begin(); i != clients.end(); i++)
                 {
-                  gpCentral->file()->remove(gstrData + "/.shutdown");
-                  gbShutdown = true;
-                }
-                while (!bExit)
-                {
-                  pollfd fds[1];
-                  fds[0].fd = fdData;
-                  fds[0].events = POLLIN;
-                  if (!strBuffer[1].empty())
+                  fds[unIndex].fd = i->first;
+                  fds[unIndex].events = POLLIN;
+                  if (!i->second[1].empty())
                   {
-                    fds[0].events |= POLLOUT;
+                    fds[unIndex].events |= POLLOUT;
                   }
-                  if ((nReturn = poll(fds, 1, 2000)) > 0)
+                  unIndex++;
+                }
+                if ((nReturn = poll(fds, unIndex, 250)) > 0)
+                {
+                  // {{{ accept
+                  if (fds[0].revents & POLLIN)
+                  {
+                    int fdData;
+                    sockaddr_un cli_addr;
+                    socklen_t clilen = sizeof(cli_addr);
+                    if ((fdData = accept(fdUnix, (struct sockaddr *)&cli_addr, &clilen)) >= 0)
+                    {
+                      vector<string> buffer = {"", ""};
+                      clients[fdData] = buffer;
+                      buffer.clear();
+                    }
+                  }
+                  // }}}
+                  for (size_t i = 1; i < unIndex; i++)
                   {
                     // {{{ read
-                    if (fds[0].revents & POLLIN)
+                    if (fds[i].revents & POLLIN)
                     {
-                      if ((nReturn = read(fdData, szBuffer, 65536)) > 0)
+                      if ((nReturn = read(fds[i].fd, szBuffer, 65536)) > 0)
                       {
-                        strBuffer[0].append(szBuffer, nReturn);
-                        while ((unPosition = strBuffer[0].find("\n")) != string::npos)
+                        clients[i][0].append(szBuffer, nReturn);
+                        while ((unPosition = clients[i][0].find("\n")) != string::npos)
                         {
                           bool bProcessed = false;
-                          Json *ptJson = new Json(strBuffer[0].substr(0, unPosition));
-                          strBuffer[0].erase(0, (unPosition + 1));
+                          Json *ptJson = new Json(clients[i][0].substr(0, unPosition));
+                          clients[i][0].erase(0, (unPosition + 1));
                           strError.clear();
                           if (ptJson->m.find("Action") != ptJson->m.end() && !ptJson->m["Action"]->v.empty())
                           {
@@ -772,9 +791,9 @@ int main(int argc, char *argv[])
                             Json *ptData;
                             if (ptJson->m.find("Keys") != ptJson->m.end())
                             {
-                              for (list<Json *>::iterator i = ptJson->m["Keys"]->l.begin(); i != ptJson->m["Keys"]->l.end(); i++)
+                              for (list<Json *>::iterator j = ptJson->m["Keys"]->l.begin(); j != ptJson->m["Keys"]->l.end(); j++)
                               {
-                                keys.push_back((*i)->v);
+                                keys.push_back((*j)->v);
                               }
                             }
                             if (ptJson->m.find("Data") != ptJson->m.end())
@@ -802,7 +821,7 @@ int main(int argc, char *argv[])
                           {
                             ptJson->insert("Error", strError);
                           }
-                          strBuffer[1].append(ptJson->json(strJson)+"\n");
+                          clients[i][1].append(ptJson->json(strJson)+"\n");
                           delete ptJson;
                         }
                       }
@@ -813,11 +832,11 @@ int main(int argc, char *argv[])
                     }
                     // }}}
                     // {{{ write
-                    if (fds[0].revents & POLLOUT)
+                    if (fds[i].revents & POLLOUT)
                     {
-                      if ((nReturn = write(fdData, strBuffer[1].c_str(), strBuffer[1].size())) > 0)
+                      if ((nReturn = write(fds[i].fd, clients[i][1].c_str(), clients[i][1].size())) > 0)
                       {
-                        strBuffer[1].erase(0, nReturn);
+                        clients[i][1].erase(0, nReturn);
                       }
                       else
                       {
@@ -826,16 +845,31 @@ int main(int argc, char *argv[])
                     }
                     // }}}
                   }
-                  else if (nReturn < 0)
-                  {
-                    bExit = true;
-                    ssMessage.str("");
-                    ssMessage << strPrefix << "->poll(" << errno << ") error:  " << strerror(errno);
-                    gpCentral->log(ssMessage.str());
-                  }
                 }
-                close(fdData);
+                else if (nReturn < 0)
+                {
+                  bExit = true;
+                  ssMessage.str("");
+                  ssMessage << strPrefix << "->poll(" << errno << ") error:  " << strerror(errno);
+                  gpCentral->log(ssMessage.str());
+                }
+                removals.sort();
+                removals.unique();
+                while (!removals.empty())
+                {
+                  close(removals.front());
+                  clients[removals.front()].clear();
+                  clients.erase(removals.front());
+                  removals.pop_front();
+                }
+                delete[] fds;
               }
+              for (map<int, vector<string> >::iterator i = clients.begin(); i != clients.end(); i++)
+              {
+                i->second.clear();
+                close(i->first);
+              }
+              clients.clear();
               if (!gbShutdown)
               {
                 gbShutdown = true;
@@ -956,7 +990,8 @@ bool storage(const string strAction, list<string> keys, Json *ptData, string &st
         }
         if ((nReturn = poll(fds, 1, 250)) > 0)
         {
-          if (fds[0].fd == fdUnix && (fds[0].revents & POLLIN))
+          // {{{ read
+          if (fds[0].revents & POLLIN)
           {
             if ((nReturn = read(fdUnix, szBuffer, 65536)) > 0)
             {
@@ -996,7 +1031,9 @@ bool storage(const string strAction, list<string> keys, Json *ptData, string &st
               }
             }
           }
-          if (fds[0].fd == fdUnix && (fds[0].revents & POLLOUT))
+          // }}}
+          // {{{ write
+          if (fds[0].revents & POLLOUT)
           {
             if ((nReturn = write(fdUnix, strBuffer[1].c_str(), strBuffer[1].size())) > 0)
             {
@@ -1013,6 +1050,7 @@ bool storage(const string strAction, list<string> keys, Json *ptData, string &st
               }
             }
           }
+          // }}}
         }
         else if (nReturn < 0)
         {

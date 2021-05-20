@@ -757,11 +757,6 @@ int main(int argc, char *argv[])
               ssMessage.str("");
               ssMessage << strPrefix << "->listen():  Listening to the storage socket.";
               gpCentral->log(ssMessage.str());
-              if (gpCentral->file()->fileExist(gstrData + "/.shutdown"))
-              {
-                gpCentral->file()->remove(gstrData + "/.shutdown");
-                gbShutdown = true;
-              }
               while (!gbShutdown && !bExit)
               {
                 fds = new pollfd[clients.size()+1];
@@ -793,6 +788,10 @@ int main(int argc, char *argv[])
                       clients[fdData] = buffer;
                       buffer.clear();
                     }
+                    else
+                    {
+                      bExit = true;
+                    }
                   }
                   // }}}
                   for (size_t i = 1; i < unIndex; i++)
@@ -802,12 +801,12 @@ int main(int argc, char *argv[])
                     {
                       if ((nReturn = read(fds[i].fd, szBuffer, 65536)) > 0)
                       {
-                        clients[i][0].append(szBuffer, nReturn);
-                        while ((unPosition = clients[i][0].find("\n")) != string::npos)
+                        clients[fds[i].fd][0].append(szBuffer, nReturn);
+                        while ((unPosition = clients[fds[i].fd][0].find("\n")) != string::npos)
                         {
                           bool bProcessed = false;
-                          Json *ptJson = new Json(clients[i][0].substr(0, unPosition));
-                          clients[i][0].erase(0, (unPosition + 1));
+                          Json *ptJson = new Json(clients[fds[i].fd][0].substr(0, unPosition));
+                          clients[fds[i].fd][0].erase(0, (unPosition + 1));
                           strError.clear();
                           if (ptJson->m.find("Action") != ptJson->m.end() && !ptJson->m["Action"]->v.empty())
                           {
@@ -845,26 +844,26 @@ int main(int argc, char *argv[])
                           {
                             ptJson->insert("Error", strError);
                           }
-                          clients[i][1].append(ptJson->json(strJson)+"\n");
+                          clients[fds[i].fd][1].append(ptJson->json(strJson)+"\n");
                           delete ptJson;
                         }
                       }
                       else
                       {
-                        bExit = true;
+                        removals.push_back(fds[i].fd);
                       }
                     }
                     // }}}
                     // {{{ write
                     if (fds[i].revents & POLLOUT)
                     {
-                      if ((nReturn = write(fds[i].fd, clients[i][1].c_str(), clients[i][1].size())) > 0)
+                      if ((nReturn = write(fds[i].fd, clients[fds[i].fd][1].c_str(), clients[fds[i].fd][1].size())) > 0)
                       {
-                        clients[i][1].erase(0, nReturn);
+                        clients[fds[i].fd][1].erase(0, nReturn);
                       }
                       else
                       {
-                        bExit = true;
+                        removals.push_back(fds[i].fd);
                       }
                     }
                     // }}}

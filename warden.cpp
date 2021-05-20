@@ -604,10 +604,9 @@ int main(int argc, char *argv[])
                             size_t unDuration[2];
                             string strJson;
                             stringstream ssDuration[2];
-                            Json *ptResponse;
+                            Json *ptResponse = new Json((*i)->strBuffer[0]);
                             close((*i)->readpipe);
                             close((*i)->writepipe);
-                            ptResponse = new Json((*i)->strBuffer[0]);
                             if (ptResponse->m.find("_storage") != ptResponse->m.end())
                             {
                               if ((*i)->ptRequest->m.find("Module") != (*i)->ptRequest->m.end() && !(*i)->ptRequest->m["Module"]->v.empty())
@@ -638,7 +637,7 @@ int main(int argc, char *argv[])
                               {
                                 ptResponse->m["_duration"] = new Json;
                               }
-                              if (ptResponse->m["_duration"]->m.find((*i)->ptRequest->m["Module"]->v) != ptResponse->m["_duration"]->m.end())
+                              if (ptResponse->m["_duration"]->m.find((*i)->ptRequest->m["Module"]->v) == ptResponse->m["_duration"]->m.end())
                               {
                                 ptResponse->m["_duration"]->m[(*i)->ptRequest->m["Module"]->v] = new Json;
                               }
@@ -646,6 +645,7 @@ int main(int argc, char *argv[])
                               ptResponse->m["_duration"]->m[(*i)->ptRequest->m["Module"]->v]->insert("request", ssDuration[1].str(), 'n');
                             }
                             strBuffer[1].append(ptResponse->json(strJson)+"\n");
+                            delete ptResponse;
                             (*i)->strBuffer[0].clear();
                             delete (*i)->ptRequest;
                             delete *i;

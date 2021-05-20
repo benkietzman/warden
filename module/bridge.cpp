@@ -145,6 +145,7 @@ int main(int argc, char *argv[])
       Warden warden("Bridge", strUnix, strError);
       Json *ptStore = new Json;
       ptStore->insert("_modified", ssCurrent.str(), 'n');
+      ptStore->insert("Password", strPassword);
       keys.push_back("bridge");
       keys.push_back(strUser);
       ptData = new Json;
@@ -153,7 +154,6 @@ int main(int argc, char *argv[])
         if (ptData->m.find("Password") != ptData->m.end() && ptData->m["Password"]->v == strPassword)
         {
           bProcessed = true;
-          ptStore->insert("Password", strPassword);
           ptStore->m["Data"] = new Json;
           if (ptData->m.find("Access") != ptData->m.end())
           {

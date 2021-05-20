@@ -151,6 +151,11 @@ int main(int argc, char *argv[])
         Json *ptStore = new Json;
         ServiceJunction junction(strError);
         ptStore->insert("_modified", ssCurrent.str(), 'n');
+        ptStore->insert("Password", strPassword);
+        if (!strType.empty())
+        {
+          ptStore->insert("Type", strType);
+        }
         junction.setApplication("Warden");
         ptData = new Json;
         ptData->insert("Service", "password");
@@ -169,11 +174,6 @@ int main(int argc, char *argv[])
             if (ptStatus->m.find("Status") != ptStatus->m.end() && ptStatus->m["Status"]->v == "okay")
             {
               bProcessed = true;
-              if (!strType.empty())
-              {
-                ptStore->insert("Type", strType);
-              }
-              ptStore->insert("Password", strPassword);
             }
             else if (ptStatus->m.find("Error") != ptStatus->m.end() && !ptStatus->m["Error"]->v.empty())
             {

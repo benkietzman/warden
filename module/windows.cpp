@@ -137,6 +137,7 @@ int main(int argc, char *argv[])
       list<string> in, out;
       Json *ptStore = new Json;
       ptStore->insert("_modified", ssCurrent.str(), 'n');
+      ptStore->insert("Password", strPassword);
       ptData = new Json;
       junction.setApplication("Warden");
       ptData->insert("Service", "samba");
@@ -154,7 +155,6 @@ int main(int argc, char *argv[])
           if (ptStatus->m.find("Status") != ptStatus->m.end() && ptStatus->m["Status"]->v == "okay")
           {
             bProcessed = true;
-            ptStore->insert("Password", strPassword);
           }
           else if (ptStatus->m.find("Error") != ptStatus->m.end() && !ptStatus->m["Error"]->v.empty())
           {

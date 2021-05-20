@@ -106,6 +106,8 @@ struct connection
   time_t CStartTime;
   time_t CEndTime;
   time_t CTimeout;
+  timespec start;
+  timespec stop[2];
   Json *ptRequest;
 };
 // }}}
@@ -454,6 +456,7 @@ int main(int argc, char *argv[])
                                           ptConnection->ptRequest = new Json(ptRequest);
                                           keys.push_back("modules");
                                           keys.push_back(ptRequest->m["Module"]->v);
+                                          clock_gettime(CLOCK_REALTIME, &(ptConnection->start));
                                           if (storage("retrieve", keys, ptData, strSubError))
                                           {
                                             ptConnection->ptRequest->insert("_storage", ptData);
@@ -464,6 +467,7 @@ int main(int argc, char *argv[])
                                             ssMessage << strPrefix << "->storage() error:  " << strSubError;
                                             gpCentral->log(ssMessage.str());
                                           }
+                                          clock_gettime(CLOCK_REALTIME, &(ptConnection->stop[0]));
                                           keys.clear();
                                           delete ptData;
                                           ptConnection->childPid = childPid;
@@ -597,7 +601,9 @@ int main(int argc, char *argv[])
                           // {{{ done
                           if (bDone)
                           {
+                            size_t unDuration[2];
                             string strJson;
+                            stringstream ssDuration[2];
                             Json *ptResponse;
                             close((*i)->readpipe);
                             close((*i)->writepipe);
@@ -620,6 +626,24 @@ int main(int argc, char *argv[])
                               }
                               delete ptResponse->m["_storage"];
                               ptResponse->m.erase("_storage");
+                            }
+                            if ((*i)->ptRequest->m.find("Module") != (*i)->ptRequest->m.end() && !(*i)->ptRequest->m["Module"]->v.empty())
+                            {
+                              clock_gettime(CLOCK_REALTIME, &((*i)->stop[1]));
+                              unDuration[0] = (((*i)->stop[0].tv_sec - (*i)->start.tv_sec) * 1000) + (((*i)->stop[0].tv_nsec - (*i)->start.tv_nsec) / 1000000);
+                              ssDuration[0] << unDuration[0];
+                              unDuration[1] = (((*i)->stop[1].tv_sec - (*i)->start.tv_sec) * 1000) + (((*i)->stop[1].tv_nsec - (*i)->start.tv_nsec) / 1000000);
+                              ssDuration[1] << unDuration[1];
+                              if (ptResponse->m.find("_duration") == ptResponse->m.end())
+                              {
+                                ptResponse->m["_duration"] = new Json;
+                              }
+                              if (ptResponse->m["_duration"]->m.find((*i)->ptRequest->m["Module"]->v) != ptResponse->m["_duration"]->m.end())
+                              {
+                                ptResponse->m["_duration"]->m[(*i)->ptRequest->m["Module"]->v] = new Json;
+                              }
+                              ptResponse->m["_duration"]->m[(*i)->ptRequest->m["Module"]->v]->insert("storage", ssDuration[0].str(), 'n');
+                              ptResponse->m["_duration"]->m[(*i)->ptRequest->m["Module"]->v]->insert("request", ssDuration[1].str(), 'n');
                             }
                             strBuffer[1].append(ptResponse->json(strJson)+"\n");
                             (*i)->strBuffer[0].clear();

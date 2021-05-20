@@ -175,6 +175,7 @@ int main(int argc, char *argv[])
         }
       }
       delete ptData;
+      keys.clear();
       ptStore->insert("Status", ((bProcessed)?"okay":"error"));
       if (!strError.empty())
       {

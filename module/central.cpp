@@ -321,7 +321,7 @@ int main(int argc, char *argv[])
     ptJson = new Json;
     strError = "Please provide the request.";
   }
-  ptJson->insert("_cached", ((bCached)?"1":"0"), ((bCached)?1:0));
+  ptJson->insert("_cached", ((bCached)?"1":"0"), ((bCached)?'1':'0'));
   ptJson->insert("Status", ((bProcessed)?"okay":"error"));
   if (!strError.empty())
   {

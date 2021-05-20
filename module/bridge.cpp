@@ -195,6 +195,7 @@ int main(int argc, char *argv[])
     ptJson = new Json;
     strError = "Please provide the request.";
   }
+  ptJson->insert("_cached", ((bDone)?"1":"0"), ((bDone)?1:0));
   ptJson->insert("Status", ((bProcessed)?"okay":"error"));
   if (!strError.empty())
   {

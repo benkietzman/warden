@@ -41,7 +41,7 @@ using namespace common;
 // {{{ main()
 int main(int argc, char *argv[])
 {
-  bool bProcessed = false, bUpdated = false;
+  bool bCached = false, bProcessed = false, bUpdated = false;
   string strError, strJson, strUnix;
   stringstream ssMessage;
   Json *ptJson;
@@ -62,7 +62,6 @@ int main(int argc, char *argv[])
   // }}}
   if (getline(cin, strJson))
   {
-    bool bDone = false;
     list<string> keys;
     string strApplication, strPassword, strSubError, strType, strUser;
     stringstream ssCurrent;
@@ -130,7 +129,7 @@ int main(int argc, char *argv[])
       keys.push_back(strUser);
       if (pStorage->retrieve(keys, ptData, strSubError) && (strType.empty() || (ptData->m.find("Type") != ptData->m.end() && ptData->m["Type"]->v == strType)) && ptData->m.find("Password") != ptData->m.end() && ptData->m["Password"]->v == strPassword)
       {
-        bDone = true;
+        bCached = true;
         if (ptData->m.find("Status") != ptData->m.end() && ptData->m["Status"]->v == "okay")
         {
           bProcessed = true;
@@ -146,7 +145,7 @@ int main(int argc, char *argv[])
       }
       delete ptData;
       keys.clear();
-      if (!bDone)
+      if (!bCached)
       {
         list<string> in, out;
         Json *ptStore = new Json;
@@ -214,7 +213,7 @@ int main(int argc, char *argv[])
       keys.push_back(strUser);
       if (pStorage->retrieve(keys, ptData, strSubError) && ptData->m.find("Password") != ptData->m.end() && ptData->m["Password"]->v == strPassword)
       {
-        bDone = true;
+        bCached = true;
         if (ptData->m.find("Status") != ptData->m.end() && ptData->m["Status"]->v == "okay")
         {
           bProcessed = true;
@@ -230,7 +229,7 @@ int main(int argc, char *argv[])
       }
       delete ptData;
       keys.clear();
-      if (!bDone)
+      if (!bCached)
       {
         Json *ptConf = new Json, *ptStore = new Json;
         Warden warden("Central", strUnix, strError);
@@ -339,7 +338,7 @@ int main(int argc, char *argv[])
     ptJson = new Json;
     strError = "Please provide the request.";
   }
-  ptJson->insert("_cached", ((bDone)?"1":"0"), ((bDone)?1:0));
+  ptJson->insert("_cached", ((bCached)?"1":"0"), ((bCached)?1:0));
   ptJson->insert("Status", ((bProcessed)?"okay":"error"));
   if (!strError.empty())
   {

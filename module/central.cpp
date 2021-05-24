@@ -95,7 +95,7 @@ int main(int argc, char *argv[])
         }
         ssModified.str(i->second->m["_modified"]->v);
         ssModified >> CModified;
-        if ((CCurrent - CModified) > 300 && pStorage->remove(keys, strSubError))
+        if ((CCurrent - CModified) > 3600 && pStorage->remove(keys, strSubError))
         {
           bUpdated = true;
         }

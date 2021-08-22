@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
       for (map<string, Json *>::iterator i = ptData->m.begin(); i != ptData->m.end(); i++)
       {
         stringstream ssModified;
-        time_t CModified;
+        time_t CDuration = 3600, CModified;
         keys.push_back(i->first);
         if (i->second->m.find("_modified") == i->second->m.end())
         {
@@ -94,7 +94,11 @@ int main(int argc, char *argv[])
         }
         ssModified.str(i->second->m["_modified"]->v);
         ssModified >> CModified;
-        if ((CCurrent - CModified) > 3600 && pStorage->remove(keys, strSubError))
+        if (i->second->m.find("Status") == i->second->m.end() || i->second->m["Status"]->v != "okay")
+        {
+          CDuration = 300;
+        }
+        if ((CCurrent - CModified) > CDuration && pStorage->remove(keys, strSubError))
         {
           bUpdated = true;
         }

@@ -40,7 +40,7 @@ using namespace common;
 int main(int argc, char *argv[])
 {
   bool bCached = false, bProcessed = false, bUpdated = false;
-  string strDomain, strError, strJson;
+  string strConf, strDomain, strError, strJson;
   stringstream ssMessage;
   Json *ptJson;
   Storage *pStorage = new Storage;
@@ -50,7 +50,13 @@ int main(int argc, char *argv[])
   for (int i = 1; i < argc; i++)
   {
     string strArg = argv[i];
-    if (strArg.size() > 9 && strArg.substr(0, 9) == "--domain=")
+    if (strArg.size() > 7 && strArg.substr(0, 7) == "--conf=")
+    {
+      strConf = strArg.substr(7, strArg.size() - 7);
+      manip.purgeChar(strConf, strConf, "'");
+      manip.purgeChar(strConf, strConf, "\"");
+    }
+    else if (strArg.size() > 9 && strArg.substr(0, 9) == "--domain=")
     {
       strDomain = strArg.substr(9, strArg.size() - 9);
       manip.purgeChar(strDomain, strDomain, "'");
@@ -144,6 +150,10 @@ int main(int argc, char *argv[])
       ptStore->insert("Password", strPassword);
       ptData = new Json;
       junction.setApplication("Warden");
+      if (!strConf.empty())
+      {
+        junction.utility()->setConfPath(strConf, strError);
+      }
       ptData->insert("Service", "samba");
       ptData->insert("Function", "login");
       ptData->insert("User", strUser);

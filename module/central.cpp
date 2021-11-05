@@ -42,7 +42,7 @@ using namespace common;
 int main(int argc, char *argv[])
 {
   bool bCached = false, bProcessed = false, bUpdated = false;
-  string strError, strJson, strUnix;
+  string strConf, strError, strJson, strUnix;
   stringstream ssMessage;
   Json *ptJson;
   Storage *pStorage = new Storage;
@@ -52,7 +52,13 @@ int main(int argc, char *argv[])
   for (int i = 1; i < argc; i++)
   {
     string strArg = argv[i];
-    if (strArg.size() > 7 && strArg.substr(0, 7) == "--unix=")
+    if (strArg.size() > 7 && strArg.substr(0, 7) == "--conf=")
+    {
+      strConf = strArg.substr(7, strArg.size() - 7);
+      manip.purgeChar(strConf, strConf, "'");
+      manip.purgeChar(strConf, strConf, "\"");
+    }
+    else if (strArg.size() > 7 && strArg.substr(0, 7) == "--unix=")
     {
       strUnix = strArg.substr(7, strArg.size() - 7);
       manip.purgeChar(strUnix, strUnix, "'");
@@ -163,6 +169,10 @@ int main(int argc, char *argv[])
                 ServiceJunction junction(strError);
                 StringManip manip;
                 junction.setApplication("Warden");
+                if (!strConf.empty())
+                {
+                  junction.utility()->setConfPath(strConf, strError);
+                }
                 ptData = new Json;
                 ptData->insert("Service", "mysql");
                 ptData->insert("User", ptConf->m["Database User"]->v);

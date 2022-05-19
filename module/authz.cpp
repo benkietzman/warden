@@ -86,7 +86,7 @@ int main(int argc, char *argv[])
       strUser = ptJson->m["userid"]->v;
     }
     ptData = new Json(ptJson);
-    if (strPassword.empty() || warden.authn(ptData, strError))
+    if ((ptJson->m.find("Password") == ptJson->m.end() && ptJson->m.find("password") == ptJson->m.end()) || warden.authn(ptData, strError))
     {
       string strSubError;
       Json *ptBridge = new Json, *ptCentral = new Json;

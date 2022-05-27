@@ -8,7 +8,7 @@
 # email      : ben@kietzman.org
 ###########################################
 
-all: bin/authn bin/authz bin/bridge bin/central bin/password bin/vault bin/windows
+all: bin/authn bin/authz bin/bridge bin/central bin/password bin/radial bin/vault bin/windows
 
 bin/authn: ../../common/libcommon.a obj/authn.o bin
 	g++ -o bin/authn obj/authn.o $(LDFLAGS) -L../../common -lcommon -lb64 -lcrypto -lexpat -lmjson -lpthread -lssl -ltar -lz
@@ -24,6 +24,9 @@ bin/central: ../../common/libcommon.a obj/central.o bin
 
 bin/password: ../../common/libcommon.a obj/password.o bin
 	g++ -o bin/password obj/password.o $(LDFLAGS) -L../../common -lcommon -lb64 -lcrypto -lexpat -lmjson -lpthread -lssl -ltar -lz
+
+bin/radial: ../../common/libcommon.a obj/radial.o bin
+	g++ -o bin/radial obj/radial.o $(LDFLAGS) -L../../common -lcommon -lb64 -lcrypto -lexpat -lmjson -lpthread -lssl -ltar -lz
 
 bin/vault: ../../common/libcommon.a obj/vault.o bin
 	g++ -o bin/vault obj/vault.o $(LDFLAGS) -L../../common -lcommon -lb64 -lcrypto -lexpat -lmjson -lpthread -lssl -ltar -lz
@@ -57,6 +60,9 @@ obj/central.o: central.cpp obj ../../common/Makefile
 
 obj/password.o: password.cpp obj ../../common/Makefile
 	g++ -g -Wall -c password.cpp -o obj/password.o $(CPPFLAGS) -I../../common;
+
+obj/radial.o: radial.cpp obj ../../common/Makefile
+	g++ -g -Wall -c radial.cpp -o obj/radial.o $(CPPFLAGS) -I../../common;
 
 obj/vault.o: vault.cpp obj ../../common/Makefile
 	g++ -g -Wall -c vault.cpp -o obj/vault.o $(CPPFLAGS) -I../../common;

@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
     if ((ptData->m.find("Password") == ptData->m.end() && ptData->m.find("password") == ptData->m.end()) || warden.authn(ptData, strError))
     {
       string strSubError;
-      Json *ptBridge = new Json, *ptCentral = new Json;
+      Json *ptBridge = new Json, *ptCentral = new Json, *ptRadial = new Json;
       ptJson->m["Data"] = new Json;
       if (!ptData->m.empty())
       {
@@ -107,6 +107,12 @@ int main(int argc, char *argv[])
         ptJson->m["Data"]->insert("central", ptCentral);
       }
       delete ptCentral;
+      if (warden.radial(strUser, strPassword, ptRadial, strSubError))
+      {
+        bProcessed = true;
+        ptJson->m["Data"]->insert("radial", ptRadial);
+      }
+      delete ptRadial;
       if (!bProcessed)
       {
         strError = strSubError;

@@ -88,7 +88,9 @@ int main(int argc, char *argv[])
     ptData = new Json(ptJson);
     if ((ptData->m.find("Password") == ptData->m.end() && ptData->m.find("password") == ptData->m.end()) || warden.authn(ptData, strError))
     {
+      bool bFirst = true;
       string strSubError;
+      stringstream ssSubError;
       Json *ptBridge = new Json, *ptCentral = new Json, *ptRadial = new Json;
       ptJson->m["Data"] = new Json;
       if (!ptData->m.empty())
@@ -100,11 +102,35 @@ int main(int argc, char *argv[])
         bProcessed = true;
         ptJson->m["Data"]->insert("bridge", ptBridge);
       }
+      else
+      {
+        if (bFirst)
+        {
+          bFirst = false;
+        }
+        else
+        {
+          ssSubError << "  ";
+        }
+        ssSubError << "[bridge] " << strSubError;
+      }
       delete ptBridge;
       if (warden.central(strUser, ptCentral, strSubError))
       {
         bProcessed = true;
         ptJson->m["Data"]->insert("central", ptCentral);
+      }
+      else
+      {
+        if (bFirst)
+        {
+          bFirst = false;
+        }
+        else
+        {
+          ssSubError << "  ";
+        }
+        ssSubError << "[central] " << strSubError;
       }
       delete ptCentral;
       if (warden.radial(strUser, strPassword, ptRadial, strSubError))
@@ -112,10 +138,22 @@ int main(int argc, char *argv[])
         bProcessed = true;
         ptJson->m["Data"]->insert("radial", ptRadial);
       }
+      else
+      {
+        if (bFirst)
+        {
+          bFirst = false;
+        }
+        else
+        {
+          ssSubError << "  ";
+        }
+        ssSubError << "[radial] " << strSubError;
+      }
       delete ptRadial;
       if (!bProcessed)
       {
-        strError = strSubError;
+        strError = ssSubError.str();
       }
     }
     delete ptData;

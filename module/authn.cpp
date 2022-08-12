@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
   if (getline(cin, strJson))
   {
     bool bApplication = false;
-    string strPassword, strSubError, strType, strUser;
+    string strErrorBridge, strErrorPassword, strErrorRadial, strErrorWindows, strPassword, strSubError, strType, strUser;
     Warden warden(strApplication, strUnix, strError);
     ptJson = new Json(strJson);
     if (ptJson->m.find("Application") != ptJson->m.end() && !ptJson->m["Application"]->v.empty())
@@ -100,15 +100,17 @@ int main(int argc, char *argv[])
     }
     else if (bApplication)
     {
-      strError = strSubError;
+      strError = (string)"[password-sla] " + strSubError;
     }
-    else if (warden.bridge(strUser, strPassword, strSubError) || warden.radial(strUser, strPassword, strSubError) || warden.password(strUser, strPassword, strSubError) || warden.windows(strUser, strPassword, strSubError))
+    else if (warden.bridge(strUser, strPassword, strErrorBridge) || warden.radial(strUser, strPassword, strErrorRadial) || warden.password(strUser, strPassword, strErrorPassword) || warden.windows(strUser, strPassword, strErrorWindows))
     {
       bProcessed = true;
     }
     else
     {
-      strError = strSubError;
+      stringstream ssError;
+      ssError << "[bridge] " << strErrorBridge << " [password] " << strErrorPassword << " [radial] " << strErrorRadial << " [windows] " << strErrorWindows;
+      strError = ssError.str();
     }
     if (pSyslog != NULL)
     {

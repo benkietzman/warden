@@ -136,7 +136,7 @@ int main(int argc, char *argv[])
       }
       else
       {
-        strError = "Encountered an unknown error.";
+        strError = "Error does not exist within the cache.";
       }
     }
     delete ptData;

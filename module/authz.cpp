@@ -92,6 +92,7 @@ int main(int argc, char *argv[])
       string strSubError;
       stringstream ssSubError;
       Json *ptBridge = new Json, *ptCentral = new Json, *ptRadial = new Json;
+      bProcessed = true;
       ptJson->m["Data"] = new Json;
       if (!ptData->m.empty())
       {
@@ -99,7 +100,6 @@ int main(int argc, char *argv[])
       }
       if (warden.bridge(strUser, strPassword, ptBridge, strSubError))
       {
-        bProcessed = true;
         ptJson->m["Data"]->insert("bridge", ptBridge);
       }
       else
@@ -117,7 +117,6 @@ int main(int argc, char *argv[])
       delete ptBridge;
       if (warden.central(strUser, ptCentral, strSubError))
       {
-        bProcessed = true;
         ptJson->m["Data"]->insert("central", ptCentral);
       }
       else
@@ -135,7 +134,6 @@ int main(int argc, char *argv[])
       delete ptCentral;
       if (warden.radial(strUser, strPassword, ptRadial, strSubError))
       {
-        bProcessed = true;
         ptJson->m["Data"]->insert("radial", ptRadial);
       }
       else
@@ -151,7 +149,7 @@ int main(int argc, char *argv[])
         ssSubError << "[radial] " << strSubError;
       }
       delete ptRadial;
-      if (!bProcessed)
+      if (!bFirst)
       {
         strError = ssSubError.str();
       }

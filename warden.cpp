@@ -47,7 +47,6 @@ using namespace std;
 #include <Json>
 #include <SignalHandling>
 #include <Storage>
-#include <Syslog>
 using namespace common;
 // }}}
 // {{{ defines
@@ -61,7 +60,7 @@ using namespace common;
 /*! \def mUSAGE(A)
 * \brief Prints the usage statement.
 */
-#define mUSAGE(A) cout << endl << "Usage:  "<< A << " [options]"  << endl << endl << " -d, --daemon" << endl << "     Turns the process into a daemon." << endl << endl << "     --data" << endl << "     Sets the data directory." << endl << endl << " -e EMAIL, --email=EMAIL" << endl << "     Provides the email address for default notifications." << endl << endl << " -h, --help" << endl << "     Displays this usage screen." << endl << endl << "           --max-buffer=[MAX BUFFER]" << endl << "     Provides the maximum input buffer limit in MBs." << endl << endl << "           --max-lines=[MAX LINES]" << endl << "     Provides the maximum input lines limit." << endl << endl << "     --syslog" << endl << "     Enables syslog." << endl << endl << " -v, --version" << endl << "     Displays the current version of this software." << endl << endl
+#define mUSAGE(A) cout << endl << "Usage:  "<< A << " [options]"  << endl << endl << " -d, --daemon" << endl << "     Turns the process into a daemon." << endl << endl << "     --data" << endl << "     Sets the data directory." << endl << endl << " -e EMAIL, --email=EMAIL" << endl << "     Provides the email address for default notifications." << endl << endl << " -h, --help" << endl << "     Displays this usage screen." << endl << endl << "           --max-buffer=[MAX BUFFER]" << endl << "     Provides the maximum input buffer limit in MBs." << endl << endl << "           --max-lines=[MAX LINES]" << endl << "     Provides the maximum input lines limit." << endl << endl << " -v, --version" << endl << "     Displays the current version of this software." << endl << endl
 /*! \def mVER_USAGE(A,B)
 * \brief Prints the version number.
 */
@@ -119,7 +118,6 @@ static string gstrApplication = "Warden"; //!< Global application name.
 static string gstrData = "/data/warden"; //!< Global data path.
 static string gstrEmail; //!< Global notification email address.
 static Central *gpCentral = NULL; //!< Contains the Central class.
-static Syslog *gpSyslog = NULL; //!< Contains the Syslog class.
 // }}}
 // {{{ prototypes
 /*! \fn void sighandle(const int nSignal)
@@ -187,10 +185,6 @@ int main(int argc, char *argv[])
     {
       mUSAGE(argv[0]);
       return 0;
-    }
-    else if (strArg == "--syslog")
-    {
-      gpSyslog = new Syslog(gstrApplication, "warden");
     }
     else if (strArg == "-v" || strArg == "--version")
     {
@@ -436,10 +430,6 @@ int main(int argc, char *argv[])
                                           close(CHILD_READ);
                                           dup2(CHILD_WRITE, 1);
                                           close(CHILD_WRITE);
-                                          if (gpSyslog != NULL)
-                                          {
-                                            gpSyslog->commandLaunched(strCommand);
-                                          }
                                           execve(args[0], args, environ);
                                           _exit(1);
                                         }
@@ -949,10 +939,6 @@ int main(int argc, char *argv[])
     mUSAGE(argv[0]);
   }
   // }}}
-  if (gpSyslog != NULL)
-  {
-    delete gpSyslog;
-  }
   delete gpCentral;
 
   return 0;

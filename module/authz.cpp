@@ -33,7 +33,6 @@
 using namespace std;
 #include <Json>
 #include <StringManip>
-#include <Syslog>
 #include <Warden>
 using namespace common;
 // }}}
@@ -45,17 +44,12 @@ int main(int argc, char *argv[])
   stringstream ssMessage;
   Json *ptJson;
   StringManip manip;
-  Syslog *pSyslog = NULL;
 
   // {{{ command line arguments
   for (int i = 1; i < argc; i++)
   {
     string strArg = argv[i];
-    if (strArg == "--syslog")
-    {
-      pSyslog = new Syslog(strApplication, "authz");
-    }
-    else if (strArg.size() > 7 && strArg.substr(0, 7) == "--unix=")
+    if (strArg.size() > 7 && strArg.substr(0, 7) == "--unix=")
     {
       strUnix = strArg.substr(7, strArg.size() - 7);
       manip.purgeChar(strUnix, strUnix, "'");
@@ -155,17 +149,6 @@ int main(int argc, char *argv[])
       }
     }
     delete ptData;
-    if (pSyslog != NULL)
-    {
-      if (bProcessed)
-      {
-        pSyslog->logon("Authorized against Warden authz.", strUser);
-      }
-      else
-      {
-        pSyslog->logon("Failed to authorize against Warden authz.", strUser, false);
-      }
-    }
   }
   else
   {
@@ -179,10 +162,6 @@ int main(int argc, char *argv[])
   }
   cout << ptJson << endl;
   delete ptJson;
-  if (pSyslog != NULL)
-  {
-    delete pSyslog;
-  }
 
   return 0;
 }

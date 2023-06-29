@@ -275,7 +275,7 @@ int main(int argc, char *argv[])
                   ptData->insert("Password", ptConf->m["Database Password"]->v);
                   ptData->insert("Server", ptConf->m["Database Server"]->v);
                   ptData->insert("Database", ptConf->m["Database"]->v);
-                  ssQuery << "select * from person where userid = '" << manip.escape(strUser, strValue) << "' and `password` = concat('*',upper(sha1(unhex(sha1('" << manip.escape(strPassword, strValue) << "')))))";
+                  ssQuery << "select * from person where userid = '" << manip.escape(strUser, strValue) << "' and (`password` = concat('*',upper(sha1(unhex(sha1('" << manip.escape(strPassword, strValue) << "'))))) or `password` = concat('!',upper(sha2(unhex(sha2('" << manip.escape(strPassword, strValue) << "', 512)), 512))))";
                   ptData->insert("Query", ssQuery.str());
                   in.push_back(ptData->json(strJson));
                   delete ptData;

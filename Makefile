@@ -14,11 +14,11 @@ all: bin/vault bin/warden
 
 bin/vault: ../common/libcommon.a obj/vault.o
 	-if [ ! -d bin ]; then mkdir bin; fi;
-	g++ -o bin/vault obj/vault.o $(LDFLAGS) -L../common -lcommon -lb64 -lcrypto -lexpat -lmjson -lnsl -lpthread -lrt -lssl -ltar -lz
+	g++ -o bin/vault obj/vault.o $(LDFLAGS) -L../common -lcommon -lb64 -lcrypto -lexpat -lmjson -lpthread -lrt -lssl -ltar -lz
 
 bin/warden: ../common/libcommon.a obj/warden.o
 	-if [ ! -d bin ]; then mkdir bin; fi;
-	g++ -o bin/warden obj/warden.o $(LDFLAGS) -L../common -lcommon -lb64 -lcrypto -lexpat -lmjson -lnsl -lpthread -lrt -lssl -ltar -lz
+	g++ -o bin/warden obj/warden.o $(LDFLAGS) -L../common -lcommon -lb64 -lcrypto -lexpat -lmjson -lpthread -lrt -lssl -ltar -lz
 
 ../common/libcommon.a: ../common/Makefile
 	cd ../common; ./configure; make;

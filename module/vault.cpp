@@ -42,7 +42,7 @@ using namespace common;
 int main(int argc, char *argv[])
 {
   bool bProcessed = false, bUpdated = false;
-  string strAes, strData = "/data/password/vault", strError, strJson, strLock, strVault;
+  string strAes, strConf, strData = "/data/password/vault", strError, strJson, strLock, strVault;
   stringstream ssMessage;
   File file;
   Json *ptJson;
@@ -54,7 +54,20 @@ int main(int argc, char *argv[])
   for (int i = 1; i < argc; i++)
   {
     string strArg = argv[i];
-    if (strArg.size() > 7 && strArg.substr(0, 7) == "--data=")
+    if (strArg == "-c" || (strArg.size() > 7 && strArg.substr(0, 7) == "--conf="))
+    {
+      if (strArg == "-c" && i + 1 < argc && argv[i+1][0] != '-')
+      {
+        strConf = argv[++i];
+      }
+      else
+      {
+        strConf = strArg.substr(7, strArg.size() - 7);
+      }
+      manip.purgeChar(strConf, strConf, "'");
+      manip.purgeChar(strConf, strConf, "\"");
+    }
+    else if (strArg.size() > 7 && strArg.substr(0, 7) == "--data=")
     {
       strData = strArg.substr(7, strArg.size() - 7);
       manip.purgeChar(strData, strData, "'");
@@ -62,6 +75,10 @@ int main(int argc, char *argv[])
     }
   }
   // }}}
+  if (!strConf.empty())
+  {
+    utility.setConfPath(strConf, strError);
+  }
   strAes = strData + "/.secret";
   strLock = strData + "/.lock";
   strVault = strData + "/storage";

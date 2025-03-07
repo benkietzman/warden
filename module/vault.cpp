@@ -77,6 +77,7 @@ int main(int argc, char *argv[])
   // }}}
   if (!strConf.empty())
   {
+    strError.clear();
     utility.setConfPath(strConf, strError);
   }
   strAes = strData + "/.secret";

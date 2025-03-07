@@ -39,6 +39,23 @@ using namespace std;
 #include <Warden>
 using namespace common;
 // }}}
+// {{{ defines
+#ifdef VERSION
+#undef VERSION
+#endif
+/*! \def VERSION
+* \brief Contains the application version number.
+*/
+#define VERSION "0.1"
+/*! \def mUSAGE(A)
+* \brief Prints the usage statement.
+*/
+#define mUSAGE(A) cout << endl << "Usage:  "<< A << " [options]"  << endl << endl << " --conf=[CONF]" << endl << "     Provides the configuration path." << endl << endl << " -h, --help" << endl << "     Displays this usage screen." << endl << endl << " -v, --version" << endl << "     Displays the current version of this software." << endl << endl
+/*! \def mVER_USAGE(A,B)
+* \brief Prints the version number.
+*/
+#define mVER_USAGE(A,B) cout << endl << A << " Version: " << B << endl << endl
+// }}}
 // {{{ main()
 /*! \fn int main(int argc, char *argv[])
 * \brief This is the main function.
@@ -46,7 +63,17 @@ using namespace common;
 */
 int main(int argc, char *argv[])
 {
-
+  // {{{ command line arguments
+  for (int i = 1; i < argc; i++)
+  {
+    string strArg = argv[i];
+    if (strArg.size() > 7 && strArg.substr(0, 7) == "--conf=")
+    {
+      strConf = strArg.substr(7, strArg.size() - 7);
+      manip.purgeChar(strConf, strConf, "'");
+      manip.purgeChar(strConf, strConf, "\"");
+    }
+  }
   if (argc >= 4 && ((string)argv[1] == "import" || (string)argv[1] == "export" || (string)argv[1] == "remove"))
   {
     string strError;

@@ -94,7 +94,7 @@ int main(int argc, char *argv[])
       {
         string strLine;
         stringstream ssJson;
-        if (argc == 5)
+        if (argc >= 5)
         {
           ifstream inJson;
           inJson.open(argv[4]);
@@ -141,7 +141,7 @@ int main(int argc, char *argv[])
         Json *ptJson = new Json;
         if (warden.vaultRetrieve(ptJson, strError))
         {
-          if (argc == 5)
+          if (argc >= 5)
           {
             ofstream outJson;
             outJson.open(argv[4]);

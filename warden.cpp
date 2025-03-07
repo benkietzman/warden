@@ -60,7 +60,7 @@ using namespace common;
 /*! \def mUSAGE(A)
 * \brief Prints the usage statement.
 */
-#define mUSAGE(A) cout << endl << "Usage:  "<< A << " [options]"  << endl << endl << " -d, --daemon" << endl << "     Turns the process into a daemon." << endl << endl << "     --data" << endl << "     Sets the data directory." << endl << endl << " -e EMAIL, --email=EMAIL" << endl << "     Provides the email address for default notifications." << endl << endl << " -h, --help" << endl << "     Displays this usage screen." << endl << endl << "           --max-buffer=[MAX BUFFER]" << endl << "     Provides the maximum input buffer limit in MBs." << endl << endl << "           --max-lines=[MAX LINES]" << endl << "     Provides the maximum input lines limit." << endl << endl << " -v, --version" << endl << "     Displays the current version of this software." << endl << endl
+#define mUSAGE(A) cout << endl << "Usage:  "<< A << " [options]"  << endl << endl << " --conf=[CONF]" << endl << "     Provides the configuration path." << endl << endl << " -d, --daemon" << endl << "     Turns the process into a daemon." << endl << endl << "     --data" << endl << "     Sets the data directory." << endl << endl << " -e EMAIL, --email=EMAIL" << endl << "     Provides the email address for default notifications." << endl << endl << " -h, --help" << endl << "     Displays this usage screen." << endl << endl << "           --max-buffer=[MAX BUFFER]" << endl << "     Provides the maximum input buffer limit in MBs." << endl << endl << "           --max-lines=[MAX LINES]" << endl << "     Provides the maximum input lines limit." << endl << endl << " -v, --version" << endl << "     Displays the current version of this software." << endl << endl
 /*! \def mVER_USAGE(A,B)
 * \brief Prints the version number.
 */
@@ -141,7 +141,7 @@ bool storage(const string strAction, list<string> keys, Json *ptData, string &st
 */
 int main(int argc, char *argv[])
 {
-  string strError, strPrefix = "main()";
+  string strConf, strError, strPrefix = "main()";
   stringstream ssMessage;
 
   gpCentral = new Central(strError);
@@ -158,7 +158,20 @@ int main(int argc, char *argv[])
   for (int i = 1; i < argc; i++)
   {
     string strArg = argv[i];
-    if (strArg == "-d" || strArg == "--daemon")
+    if (strArg == "-c" || (strArg.size() > 7 && strArg.substr(0, 7) == "--conf="))
+    {
+      if (strArg == "-c" && i + 1 < argc && argv[i+1][0] != '-')
+      {
+        strConf = argv[++i];
+      }
+      else
+      {
+        strConf = strArg.substr(7, strArg.size() - 7);
+      }
+      manip.purgeChar(strConf, strConf, "'");
+      manip.purgeChar(strConf, strConf, "\"");
+    }
+    else if (strArg == "-d" || strArg == "--daemon")
     {
       gbDaemon = true;
     }
@@ -199,6 +212,12 @@ int main(int argc, char *argv[])
     }
   }
   // }}}
+  if (!strConf.empty())
+  {
+    gpCentral->junction()->setConfPath(strConf, strError);
+    gpCentral->radial()->setConfPath(strConf, strError);
+    gpCentral->utility()->setConfPath(strConf, strError);
+  }
   gpCentral->setApplication(gstrApplication);
   gpCentral->setEmail(gstrEmail);
   gpCentral->setLog(gstrData, "warden_", "daily", true, true);

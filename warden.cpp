@@ -168,8 +168,8 @@ int main(int argc, char *argv[])
       {
         strConf = strArg.substr(7, strArg.size() - 7);
       }
-      manip.purgeChar(strConf, strConf, "'");
-      manip.purgeChar(strConf, strConf, "\"");
+      ptCentral->manip()->purgeChar(strConf, strConf, "'");
+      ptCentral->manip()->purgeChar(strConf, strConf, "\"");
     }
     else if (strArg == "-d" || strArg == "--daemon")
     {

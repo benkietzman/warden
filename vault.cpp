@@ -83,6 +83,11 @@ int main(int argc, char *argv[])
   {
     string strError;
     Warden warden(argv[3], argv[2], strError);
+    if (!strConf.empty())
+    {
+      strError.clear();
+      warden.utility()->setConfPath(strConf, strError);
+    }
     if (strError.empty())
     {
       if ((string)argv[1] == "import")

@@ -214,8 +214,8 @@ int main(int argc, char *argv[])
   // }}}
   if (!strConf.empty())
   {
-    gpCentral->junction()->setConfPath(strConf, strError);
-    gpCentral->radial()->setConfPath(strConf, strError);
+    gpCentral->junction()->utility()->setConfPath(strConf, strError);
+    gpCentral->radial()->utility()->setConfPath(strConf, strError);
     gpCentral->utility()->setConfPath(strConf, strError);
   }
   gpCentral->setApplication(gstrApplication);

@@ -36,6 +36,7 @@
 #include <string>
 using namespace std;
 #include <Json>
+#include <StringManip>
 #include <Warden>
 using namespace common;
 // }}}
@@ -63,6 +64,9 @@ using namespace common;
 */
 int main(int argc, char *argv[])
 {
+  string strConf;
+  StringManip manip;
+
   // {{{ command line arguments
   for (int i = 1; i < argc; i++)
   {
@@ -74,6 +78,7 @@ int main(int argc, char *argv[])
       manip.purgeChar(strConf, strConf, "\"");
     }
   }
+  // }}}
   if (argc >= 4 && ((string)argv[1] == "import" || (string)argv[1] == "export" || (string)argv[1] == "remove"))
   {
     string strError;

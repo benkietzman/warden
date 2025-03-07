@@ -214,6 +214,7 @@ int main(int argc, char *argv[])
   // }}}
   if (!strConf.empty())
   {
+    strError.clear();
     gpCentral->junction()->utility()->setConfPath(strConf, strError);
     gpCentral->radial()->utility()->setConfPath(strConf, strError);
     gpCentral->utility()->setConfPath(strConf, strError);

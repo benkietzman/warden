@@ -107,28 +107,44 @@ int main(int argc, char *argv[])
     }
     ptData = new Json;
     keys.push_back(strUser);
-    if (pStorage->retrieve(keys, ptData, strSubError) && ptData->m.find("Password") != ptData->m.end() && ptData->m["Password"]->v == strPassword)
+    if (pStorage->retrieve(keys, ptData, strSubError) && ptData->m.find("Password") != ptData->m.end())
     {
-      bCached = true;
-      if (ptData->m.find("Status") != ptData->m.end() && ptData->m["Status"]->v == "okay")
+      if (!ptData->m["Password"]->l.empty())
       {
-        if (ptData->m.find("Data") != ptData->m.end())
+        for (auto i = ptData->m["Password"]->l.begin(); !bCached && i != ptData->m["Password"]->l.end(); i++)
         {
-          bProcessed = true;
-          ptJson->insert("Data", ptData->m["Data"]);
+          if ((*i)->v == strPassword)
+          {
+            bCached = true;
+          }
+        }
+      }
+      else if (ptData->m["Password"]->v == strPassword)
+      {
+        bCached = true;
+      }
+      if (bCached)
+      {
+        if (ptData->m.find("Status") != ptData->m.end() && ptData->m["Status"]->v == "okay")
+        {
+          if (ptData->m.find("Data") != ptData->m.end())
+          {
+            bProcessed = true;
+            ptJson->insert("Data", ptData->m["Data"]);
+          }
+          else
+          {
+            strError = "Failed to parse Data.";
+          }
+        }
+        else if (ptData->m.find("Error") != ptData->m.end() && !ptData->m["Error"]->v.empty())
+        {
+          strError = ptData->m["Error"]->v;
         }
         else
         {
-          strError = "Failed to parse Data.";
+          strError = "Error does not exist within the cache.";
         }
-      }
-      else if (ptData->m.find("Error") != ptData->m.end() && !ptData->m["Error"]->v.empty())
-      {
-        strError = ptData->m["Error"]->v;
-      }
-      else
-      {
-        strError = "Error does not exist within the cache.";
       }
     }
     delete ptData;
@@ -144,27 +160,43 @@ int main(int argc, char *argv[])
       ptData = new Json;
       if (warden.vaultRetrieve(keys, ptData, strError))
       {
-        if (ptData->m.find("Password") != ptData->m.end() && ptData->m["Password"]->v == strPassword)
+        if (ptData->m.find("Password") != ptData->m.end())
         {
-          bProcessed = true;
-          ptStore->m["Data"] = new Json;
-          if (ptData->m.find("Access") != ptData->m.end())
+          if (!ptData->m["Password"]->l.empty())
           {
-            ptStore->m["Data"]->insert("Access", ptData->m["Access"]);
+            for (auto i = ptData->m["Password"]->l.begin(); !bProcessed && i != ptData->m["Password"]->l.end(); i++)
+            {
+              if ((*i)->v == strPassword)
+              {
+                bProcessed = true;
+              }
+            }
           }
-          if (ptData->m.find("Application") != ptData->m.end() && !ptData->m["Application"]->v.empty())
+          else if (ptData->m["Password"]->v == strPassword)
           {
-            ptStore->m["Data"]->insert("Application", ptData->m["Application"]->v);
+            bProcessed = true;
           }
-          if (ptData->m.find("Type") != ptData->m.end() && !ptData->m["Type"]->v.empty())
+          if (bProcessed)
           {
-            ptStore->m["Data"]->insert("Type", ptData->m["Type"]->v);
+            ptStore->m["Data"] = new Json;
+            if (ptData->m.find("Access") != ptData->m.end())
+            {
+              ptStore->m["Data"]->insert("Access", ptData->m["Access"]);
+            }
+            if (ptData->m.find("Application") != ptData->m.end() && !ptData->m["Application"]->v.empty())
+            {
+              ptStore->m["Data"]->insert("Application", ptData->m["Application"]->v);
+            }
+            if (ptData->m.find("Type") != ptData->m.end() && !ptData->m["Type"]->v.empty())
+            {
+              ptStore->m["Data"]->insert("Type", ptData->m["Type"]->v);
+            }
+            ptJson->insert("Data", ptStore->m["Data"]);
           }
-          ptJson->insert("Data", ptStore->m["Data"]);
-        }
-        else
-        {
-          strError = "Access denied.";
+          else
+          {
+            strError = "Access denied.";
+          }
         }
       }
       delete ptData;

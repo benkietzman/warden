@@ -31,7 +31,7 @@ using namespace common;
 int main(int argc, char *argv[])
 {
   bool bProcessed = false, bUpdated = false;
-  string strAes, strConf, strData = "/data/password/vault", strError, strJson, strLock, strVault;
+  string strAes, strConf, strData = "/data/warden/vault", strError, strJson, strLock, strVault;
   stringstream ssMessage;
   File file;
   Json *ptJson;

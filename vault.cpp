@@ -53,6 +53,7 @@ using namespace common;
 */
 int main(int argc, char *argv[])
 {
+  int nReturn = -1;
   string strConf;
   StringManip manip;
 
@@ -112,6 +113,7 @@ int main(int argc, char *argv[])
           Json *ptJson = new Json(ssJson.str());
           if (warden.vaultAdd(ptJson, strError))
           {
+            nReturn = 0;
             cout << "Warden::vaultAdd():  Imported JSON into vault." << endl;
           }
           else
@@ -136,6 +138,7 @@ int main(int argc, char *argv[])
             outJson.open(argv[4]);
             if (outJson)
             {
+              nReturn = 0;
               outJson << ptJson << endl;
             }
             else
@@ -157,6 +160,7 @@ int main(int argc, char *argv[])
       }
       else if (warden.vaultRemove(strError))
       {
+        nReturn = 0;
         cout << "The vault has been removed." << endl;
       }
       else
@@ -174,6 +178,6 @@ int main(int argc, char *argv[])
     cerr << "USAGE:  " << argv[0] << " [import|export|remove] [unix socket] [application] [file|stdin]" << endl;
   }
 
-  return 0;
+  return nReturn;
 }
 // }}}

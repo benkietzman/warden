@@ -50,7 +50,7 @@ int main(int argc, char *argv[])
   {
     bool bApplication = false;
     string strErrorBridge, strErrorPasskey, strErrorPassword, strErrorRadial, strErrorWindows, strPassword, strSubError, strType, strUser;
-    Json *ptPublicKeyCredential = NULL;
+    Json *ptPasskey = NULL;
     Warden warden(strApplication, strUnix, strError);
     ptJson = new Json(strJson);
     if (ptJson->m.find("Application") != ptJson->m.end() && !ptJson->m["Application"]->v.empty())
@@ -66,9 +66,9 @@ int main(int argc, char *argv[])
     {
       strPassword = ptJson->m["password"]->v;
     }
-    if (ptJson->m.find("publicKeyCredential") != ptJson->m.end())
+    if (ptJson->m.find("passkey") != ptJson->m.end())
     {
-      ptPublicKeyCredential = new Json(ptJson->m["publicKeyCredential"]);
+      ptPasskey = new Json(ptJson->m["passkey"]);
     }
     if (ptJson->m.find("Type") != ptJson->m.end() && !ptJson->m["Type"]->v.empty())
     {
@@ -90,7 +90,7 @@ int main(int argc, char *argv[])
     {
       strError = (string)"[password-sla] " + strSubError;
     }
-    else if (warden.bridge(strUser, strPassword, strErrorBridge) || warden.radial(strUser, strPassword, strErrorRadial) || warden.password(strUser, strPassword, strErrorPassword) || warden.passkey(ptPublicKeyCredential, strErrorPasskey) || warden.windows(strUser, strPassword, strErrorWindows))
+    else if (warden.bridge(strUser, strPassword, strErrorBridge) || warden.radial(strUser, strPassword, strErrorRadial) || warden.password(strUser, strPassword, strErrorPassword) || warden.passkey(ptPasskey, strErrorPasskey) || warden.windows(strUser, strPassword, strErrorWindows))
     {
       bProcessed = true;
     }
@@ -100,9 +100,9 @@ int main(int argc, char *argv[])
       ssError << "[bridge] " << strErrorBridge << " [passkey] " << strErrorPasskey << " [password] " << strErrorPassword << " [radial] " << strErrorRadial << " [windows] " << strErrorWindows;
       strError = ssError.str();
     }
-    if (ptPublicKeyCredential != NULL)
+    if (ptPasskey != NULL)
     {
-      delete ptPublicKeyCredential;
+      delete ptPasskey;
     }
   }
   else

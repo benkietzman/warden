@@ -59,9 +59,9 @@ int main(int argc, char *argv[])
     string strEncodedData, strEncodedSignature, strID, strSubError;
     Json *ptConf = new Json, *ptData;
     ptJson = new Json(strJson);
-    if (ptJson->m.find("authenticatorData") != ptJson->m.end() && !ptJson->m["authenticatorData"]->v.empty())
+    if (ptJson->m.find("data") != ptJson->m.end() && !ptJson->m["data"]->v.empty())
     {
-      strEncodedData = ptJson->m["authenticatorData"]->v;
+      strEncodedData = ptJson->m["data"]->v;
     }
     if (ptJson->m.find("id") != ptJson->m.end() && !ptJson->m["id"]->v.empty())
     {

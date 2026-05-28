@@ -125,7 +125,7 @@ int main(int argc, char *argv[])
                           manip.decodeBase64(ptPersonPasskey->m["public_key"]->v, strPublicKey);
                           manip.decodeBase64(strEncodedData, strData);
                           manip.decodeBase64(strEncodedSignature, strSignature);
-                          if ((key = EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519, NULL, (const unsigned char *)strPublicKey.c_str(), strPublicKey.size())) != NULL)
+                          if ((key = EVP_PKEY_new_raw_public_key(EVP_PKEY_X25519, NULL, (const unsigned char *)strPublicKey.c_str(), strPublicKey.size())) != NULL)
                           {
                             EVP_PKEY_CTX *ctx;
                             if ((ctx = EVP_PKEY_CTX_new(key, NULL)) != NULL)

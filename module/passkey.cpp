@@ -57,7 +57,7 @@ int main(int argc, char *argv[])
   if (getline(cin, strJson))
   {
     string strEncodedData, strEncodedSignature, strID, strSubError;
-    Json *ptConf = new Json, *ptData;
+    Json *ptConf = new Json;
     ptJson = new Json(strJson);
     if (ptJson->m.find("data") != ptJson->m.end() && !ptJson->m["data"]->v.empty())
     {
@@ -71,7 +71,7 @@ int main(int argc, char *argv[])
     {
       strEncodedSignature = ptJson->m["signature"]->v;
     }
-    if (!strEncodedData.empty() && strEncodedSignature.empty() && !strID.empty())
+    if (!strEncodedData.empty() && !strEncodedSignature.empty() && !strID.empty())
     {
       list<string> keys;
       Warden warden("Central", strUnix, strError);
@@ -91,12 +91,12 @@ int main(int argc, char *argv[])
                 stringstream ssQuery;
                 ServiceJunction junction(strError);
                 StringManip manip;
+                Json *ptData = new Json;
                 junction.setApplication("Warden");
                 if (!strConf.empty())
                 {
                   junction.utility()->setConfPath(strConf, strError);
                 }
-                ptData = new Json;
                 ptData->insert("Service", "mysql");
                 ptData->insert("User", ptConf->m["Database User"]->v);
                 ptData->insert("Password", ptConf->m["Database Password"]->v);

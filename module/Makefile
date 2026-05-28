@@ -9,12 +9,13 @@
 ###########################################
 # {{{ prep work
 prefix=/usr/local
-all: bin/authn bin/authz bin/bridge bin/central bin/password bin/radial bin/vault bin/windows
-install: bin/authn bin/authz bin/bridge bin/central bin/password bin/radial bin/vault bin/windows $(prefix)/warden/module
+all: bin/authn bin/authz bin/bridge bin/central bin/passkey bin/password bin/radial bin/vault bin/windows
+install: bin/authn bin/authz bin/bridge bin/central bin/passkey bin/password bin/radial bin/vault bin/windows $(prefix)/warden/module
 	install --mode=775 bin/authn $(prefix)/warden/module/
 	install --mode=775 bin/authz $(prefix)/warden/module/
 	install --mode=775 bin/bridge $(prefix)/warden/module/
 	install --mode=775 bin/central $(prefix)/warden/module/
+	install --mode=775 bin/passkey $(prefix)/warden/module/
 	install --mode=775 bin/password $(prefix)/warden/module/
 	install --mode=775 bin/radial $(prefix)/warden/module/
 	install --mode=775 bin/vault $(prefix)/warden/module/
@@ -52,6 +53,14 @@ bin/central: ../../common/libcommon.a obj/central.o bin
 	g++ -o bin/central obj/central.o $(LDFLAGS) -L../../common -lcommon -lb64 -lcrypto -lexpat -lmjson -lpthread -lssl -ltar -lz
 obj/central.o: central.cpp obj ../../common/Makefile
 	g++ -g -Wall -c central.cpp -o obj/central.o $(CPPFLAGS) -I../../common;
+# }}}
+# {{{ passkey
+passkey: bin/passkey $(prefix)/warden/module
+	install --mode=775 bin/passkey $(prefix)/warden/module/
+bin/passkey: ../../common/libcommon.a obj/passkey.o bin
+	g++ -o bin/passkey obj/passkey.o $(LDFLAGS) -L../../common -lcommon -lb64 -lcrypto -lexpat -lmjson -lpthread -lssl -ltar -lz
+obj/passkey.o: passkey.cpp obj ../../common/Makefile
+	g++ -g -Wall -c passkey.cpp -o obj/passkey.o $(CPPFLAGS) -I../../common;
 # }}}
 # {{{ password
 password: bin/password $(prefix)/warden/module

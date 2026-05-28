@@ -49,7 +49,8 @@ int main(int argc, char *argv[])
   if (getline(cin, strJson))
   {
     bool bApplication = false;
-    string strErrorBridge, strErrorPassword, strErrorRadial, strErrorWindows, strPassword, strSubError, strType, strUser;
+    string strErrorBridge, strErrorPasskey, strErrorPassword, strErrorRadial, strErrorWindows, strPassword, strSubError, strType, strUser;
+    Json *ptPublicKeyCredential = NULL;
     Warden warden(strApplication, strUnix, strError);
     ptJson = new Json(strJson);
     if (ptJson->m.find("Application") != ptJson->m.end() && !ptJson->m["Application"]->v.empty())
@@ -64,6 +65,10 @@ int main(int argc, char *argv[])
     else if (ptJson->m.find("password") != ptJson->m.end() && !ptJson->m["password"]->v.empty())
     {
       strPassword = ptJson->m["password"]->v;
+    }
+    if (ptJson->m.find("publicKeyCredential") != ptJson->m.end())
+    {
+      ptPublicKeyCredential = new Json(ptJson->m["publicKeyCredential"]);
     }
     if (ptJson->m.find("Type") != ptJson->m.end() && !ptJson->m["Type"]->v.empty())
     {
@@ -85,15 +90,19 @@ int main(int argc, char *argv[])
     {
       strError = (string)"[password-sla] " + strSubError;
     }
-    else if (warden.bridge(strUser, strPassword, strErrorBridge) || warden.radial(strUser, strPassword, strErrorRadial) || warden.password(strUser, strPassword, strErrorPassword) || warden.windows(strUser, strPassword, strErrorWindows))
+    else if (warden.bridge(strUser, strPassword, strErrorBridge) || warden.radial(strUser, strPassword, strErrorRadial) || warden.password(strUser, strPassword, strErrorPassword) || warden.passkey(ptPublicKeyCredential, strErrorPasskey) || warden.windows(strUser, strPassword, strErrorWindows))
     {
       bProcessed = true;
     }
     else
     {
       stringstream ssError;
-      ssError << "[bridge] " << strErrorBridge << " [password] " << strErrorPassword << " [radial] " << strErrorRadial << " [windows] " << strErrorWindows;
+      ssError << "[bridge] " << strErrorBridge << " [passkey] " << strErrorPasskey << " [password] " << strErrorPassword << " [radial] " << strErrorRadial << " [windows] " << strErrorWindows;
       strError = ssError.str();
+    }
+    if (ptPublicKeyCredential != NULL)
+    {
+      delete ptPublicKeyCredential;
     }
   }
   else

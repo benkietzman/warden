@@ -155,7 +155,9 @@ int main(int argc, char *argv[])
                           }
                           else
                           {
-                            strError = "Failed to initialize public key.";
+                            stringstream ssError;
+                            ssError << "EVP_PKEY_new_raw_public_key(" << errno << ") " << strerror(errno);
+                            strError = ssError.str();
                           }
                         }
                         else

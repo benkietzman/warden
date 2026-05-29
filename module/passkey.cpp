@@ -124,7 +124,7 @@ int main(int argc, char *argv[])
                           string strData, strPublicKey, strSignature;
                           manip.decodeBase64(ptPersonPasskey->m["public_key"]->v, strPublicKey);
 ptJson->i("public_key-encoded", to_string(ptPersonPasskey->m["public_key"]->v.size()), 'n');
-ptJson->i("public_key-encoded", to_string(strPublicKey.size()), 'n');
+ptJson->i("public_key-raw", to_string(strPublicKey.size()), 'n');
                           manip.decodeBase64(strEncodedData, strData);
                           manip.decodeBase64(strEncodedSignature, strSignature);
 

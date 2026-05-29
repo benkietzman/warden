@@ -128,37 +128,60 @@ ptJson->i("public_key-raw", to_string(strPublicKey.size()), 'n');
                           manip.decodeBase64(strEncodedData, strData);
                           manip.decodeBase64(strEncodedSignature, strSignature);
 
-                          /*
-                          EVP_MD_CTX *ctx;
-                          if ((ctx = EVP_MD_CTX_new()) != NULL)
+                          /**/
+                          BIO *bio;
+                          if ((bio = BIO_new_mem_buf((const unsigned char *)strPublicKey.c_str(), strPublicKey.size())) != NULL)
                           {
-                            if (EVP_DigestVerifyInit(ctx, NULL, EVP_sha256(), NULL, key) == 1)
+                            //EVP_PKEY *key;
+                            if ((key = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL)) != NULL)
                             {
-                              if (EVP_DigestVerifyUpdate(ctx, (const unsigned char *)strData.c_str(), strData.size()) == 1)
+                              EVP_MD_CTX *ctx;
+                              if ((ctx = EVP_MD_CTX_new()) != NULL)
                               {
-                                if (EVP_DigestVerifyFinal(ctx, (const unsigned char *)strSignature.c_str(), strSignature.size()) == 1)
+                                if (EVP_DigestVerifyInit(ctx, NULL, EVP_sha256(), NULL, key) == 1)
                                 {
+                                  if (EVP_DigestVerifyUpdate(ctx, (const unsigned char *)strData.c_str(), strData.size()) == 1)
+                                  {
+                                    if (EVP_DigestVerifyFinal(ctx, (const unsigned char *)strSignature.c_str(), strSignature.size()) == 1)
+                                    {
+                                      bProcessed = true;
+                                    }
+                                    else
+                                    {
+                                      strError = "Failed verification.";
+                                    }
+                                  }
+                                  else
+                                  {
+                                    strError = "Failed to set data.";
+                                  }
                                 }
                                 else
                                 {
+                                  strError = "Failed to initialize verify.";
                                 }
+                                EVP_MD_CTX_free(ctx);
                               }
                               else
                               {
+                                strError = "Failed to initialize context.";
                               }
                             }
                             else
                             {
+                              strError = "Failed to read bio.";
                             }
-                            EVP_MD_CTX_free(ctx);
+                            BIO_free(bio);
                           }
                           else
                           {
+                            strError = "Failed to initialize bio.";
                           }
-                          */
+                          /**/
 
                           // -7:  EC P256
                           // -257:  RSA
+                          /*
                           if ((key = EVP_PKEY_new_raw_public_key(EVP_PKEY_EC, NULL, (const unsigned char *)strPublicKey.c_str(), strPublicKey.size())) != NULL)
                           {
                             EVP_PKEY_CTX *ctx;
@@ -191,6 +214,7 @@ ptJson->i("public_key-raw", to_string(strPublicKey.size()), 'n');
                           {
                             strError = "Failed to initialize public key.";
                           }
+                          */
                         }
                         else
                         {

@@ -127,7 +127,37 @@ ptJson->i("PublickKey-encoded", to_string(ptPersonPasskey->m["public_key"]->v.si
 ptJson->i("PublickKey-raw", to_string(strPublicKey.size()), 'n');
                           manip.decodeBase64(strEncodedData, strData);
                           manip.decodeBase64(strEncodedSignature, strSignature);
-                          if ((key = EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519, NULL, (const unsigned char *)strPublicKey.c_str(), strPublicKey.size())) != NULL)
+
+                          /*
+                          EVP_MD_CTX *ctx;
+                          if ((ctx = EVP_MD_CTX_new()) != NULL)
+                          {
+                            if (EVP_DigestVerifyInit(ctx, NULL, EVP_sha256(), NULL, key) == 1)
+                            {
+                              if (EVP_DigestVerifyUpdate(ctx, (const unsigned char *)strData.c_str(), strData.size()) == 1)
+                              {
+                                if (EVP_DigestVerifyFinal(ctx, (const unsigned char *)strSignature.c_str(), strSignature.size()) == 1)
+                                {
+                                }
+                                else
+                                {
+                                }
+                              }
+                              else
+                              {
+                              }
+                            }
+                            else
+                            {
+                            }
+                            EVP_MD_CTX_free(ctx);
+                          }
+                          else
+                          {
+                          }
+                          */
+
+                          if ((key = EVP_PKEY_new_raw_public_key(EVP_PKEY_EC, NULL, (const unsigned char *)strPublicKey.c_str(), strPublicKey.size())) != NULL)
                           {
                             EVP_PKEY_CTX *ctx;
                             if ((ctx = EVP_PKEY_CTX_new(key, NULL)) != NULL)

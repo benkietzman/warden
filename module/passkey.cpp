@@ -102,7 +102,7 @@ int main(int argc, char *argv[])
                 ptData->insert("Password", ptConf->m["Database Password"]->v);
                 ptData->insert("Server", ptConf->m["Database Server"]->v);
                 ptData->insert("Database", ptConf->m["Database"]->v);
-                ssQuery << "select public_key from person_passkey where passkey_id = '" << manip.escape(strID, strValue) << "'";
+                ssQuery << "select algorithm, public_key from person_passkey where passkey_id = '" << manip.escape(strID, strValue) << "'";
                 ptData->insert("Query", ssQuery.str());
                 in.push_back(ptData->json(strJson));
                 delete ptData;
@@ -123,6 +123,8 @@ int main(int argc, char *argv[])
                           EVP_PKEY *key;
                           string strData, strPublicKey, strSignature;
                           manip.decodeBase64(ptPersonPasskey->m["public_key"]->v, strPublicKey);
+ptJson->i("public_key-encoded", to_string(ptPersonPasskey->m["public_key"]->v.size()), 'n');
+ptJson->i("public_key-encoded", to_string(strPublicKey.size()), 'n');
                           manip.decodeBase64(strEncodedData, strData);
                           manip.decodeBase64(strEncodedSignature, strSignature);
 
@@ -155,6 +157,8 @@ int main(int argc, char *argv[])
                           }
                           */
 
+                          // -7:  EC P256
+                          // -257:  RSA
                           if ((key = EVP_PKEY_new_raw_public_key(EVP_PKEY_EC, NULL, (const unsigned char *)strPublicKey.c_str(), strPublicKey.size())) != NULL)
                           {
                             EVP_PKEY_CTX *ctx;

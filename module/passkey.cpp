@@ -117,7 +117,7 @@ int main(int argc, char *argv[])
                   ptData->insert("Password", ptConf->m["Database Password"]->v);
                   ptData->insert("Server", ptConf->m["Database Server"]->v);
                   ptData->insert("Database", ptConf->m["Database"]->v);
-                  ssQuery << "select public_key from person_passkey where passkey_id = '" << manip.escape(strID, strValue) << "'";
+                  ssQuery << "select a.userid, b.public_key from person a, person_passkey b where a.id = b.person_id and b.passkey_id = '" << manip.escape(strID, strValue) << "'";
                   ptData->insert("Query", ssQuery.str());
                   in.push_back(ptData->json(strJson));
                   delete ptData;
@@ -153,6 +153,7 @@ int main(int argc, char *argv[])
                                         if (EVP_DigestVerifyFinal(ctx, (const unsigned char *)signature, nSignature) == 1)
                                         {
                                           bProcessed = true;
+                                          ptJson->i("User", ptPersonPasskey->m["userid"]->v);
                                         }
                                         else
                                         {

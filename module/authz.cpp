@@ -76,10 +76,10 @@ int main(int argc, char *argv[])
       stringstream ssSubError;
       Json *ptBridge = new Json, *ptCentral = new Json, *ptRadial = new Json;
       bProcessed = true;
+      ptJson->i("authn-response", ptData);
       if (ptData->m.find("User") != ptData->m.end() && !ptData->m["User"]->v.empty())
       {
         strUser = ptData->m["User"]->v;
-        ptJson->i("User", strUser);
       }
       if (ptJson->m.find("Data") != ptJson->m.end())
       {

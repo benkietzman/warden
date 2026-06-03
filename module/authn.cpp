@@ -90,7 +90,7 @@ int main(int argc, char *argv[])
     {
       strError = (string)"[password-sla] " + strSubError;
     }
-    else if (warden.bridge(strUser, strPassword, strErrorBridge) || warden.radial(strUser, strPassword, strErrorRadial) || warden.password(strUser, strPassword, strErrorPassword) || warden.passkey(ptPasskey, strErrorPasskey) || warden.windows(strUser, strPassword, strErrorWindows))
+    else if (warden.bridge(strUser, strPassword, strErrorBridge) || warden.radial(strUser, strPassword, strErrorRadial) || warden.password(strUser, strPassword, strErrorPassword) || (ptPasskey != NULL && warden.passkey(ptPasskey, strErrorPasskey)) || warden.windows(strUser, strPassword, strErrorWindows))
     {
       bProcessed = true;
     }

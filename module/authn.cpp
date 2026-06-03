@@ -93,10 +93,6 @@ int main(int argc, char *argv[])
     else if (warden.bridge(strUser, strPassword, strErrorBridge) || warden.radial(strUser, strPassword, strErrorRadial) || warden.password(strUser, strPassword, strErrorPassword) || (ptPasskey != NULL && warden.passkey(ptPasskey, strErrorPasskey)) || warden.windows(strUser, strPassword, strErrorWindows))
     {
       bProcessed = true;
-      if (ptPasskey != NULL)
-      {
-        ptJson->i("passkey-results", ptPasskey);
-      }
       if (ptPasskey != NULL && ptPasskey->m.find("User") != ptPasskey->m.end() && !ptPasskey->m["User"]->v.empty())
       {
         ptJson->i("User", ptPasskey->m["User"]->v);

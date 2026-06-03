@@ -153,7 +153,11 @@ int main(int argc, char *argv[])
                                         if (EVP_DigestVerifyFinal(ctx, (const unsigned char *)signature, nSignature) == 1)
                                         {
                                           bProcessed = true;
-                                          ptJson->i("User", ptPersonPasskey->m["userid"]->v);
+                                          if (ptJson->m.find("Data") == ptJson->m.end())
+                                          {
+                                            ptJson->m["Data"] = new Json;
+                                          }
+                                          ptJson->m["Data"]->i("User", ptPersonPasskey->m["userid"]->v);
                                         }
                                         else
                                         {

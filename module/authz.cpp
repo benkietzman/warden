@@ -79,6 +79,7 @@ int main(int argc, char *argv[])
       if (ptData->m.find("User") != ptData->m.end() && !ptData->m["User"]->v.empty())
       {
         strUser = ptData->m["User"]->v;
+        ptJson->i("User", strUser);
       }
       if (ptJson->m.find("Data") != ptJson->m.end())
       {

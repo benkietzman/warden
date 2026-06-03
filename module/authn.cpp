@@ -95,7 +95,11 @@ int main(int argc, char *argv[])
       bProcessed = true;
       if (ptPasskey != NULL && ptPasskey->m.find("User") != ptPasskey->m.end() && !ptPasskey->m["User"]->v.empty())
       {
-        ptJson->i("User", ptPasskey->m["User"]->v);
+        if (ptJson->m.find("Data") == ptJson->m.end())
+        {
+          ptJson->m["Data"] = new Json;
+        }
+        ptJson->m["Data"]->i("User", ptPasskey->m["User"]->v);
       }
     }
     else

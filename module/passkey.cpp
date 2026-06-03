@@ -36,6 +36,8 @@ int main(int argc, char *argv[])
   Json *ptJson;
   StringManip manip;
 
+  ERR_load_crypto_strings();
+  OpenSSL_add_all_algorithms();
   // {{{ command line arguments
   for (int i = 1; i < argc; i++)
   {
@@ -56,12 +58,17 @@ int main(int argc, char *argv[])
   // }}}
   if (getline(cin, strJson))
   {
-    string strEncodedData, strEncodedSignature, strID, strSubError;
-    Json *ptConf = new Json;
+    size_t nAuthenticatorData, nClientDataJSON, nSignature;
+    string strID, strSubError;
+    uint8_t *authenticatorData = NULL, *clientDataJSON = NULL, *signature = NULL;
     ptJson = new Json(strJson);
-    if (ptJson->m.find("data") != ptJson->m.end() && !ptJson->m["data"]->v.empty())
+    if (ptJson->m.find("authenticatorData") != ptJson->m.end() && !ptJson->m["authenticatorData"]->v.empty())
     {
-      strEncodedData = ptJson->m["data"]->v;
+      authenticatorData = manip.decodeBase64(ptJson->m["authenticatorData"]->v, nAuthenticatorData, strSubError);
+    }
+    if (ptJson->m.find("clientDataJSON") != ptJson->m.end() && !ptJson->m["clientDataJSON"]->v.empty())
+    {
+      clientDataJSON = manip.decodeBase64(ptJson->m["clientDataJSON"]->v, nClientDataJSON, strSubError);
     }
     if (ptJson->m.find("id") != ptJson->m.end() && !ptJson->m["id"]->v.empty())
     {
@@ -69,203 +76,178 @@ int main(int argc, char *argv[])
     }
     if (ptJson->m.find("signature") != ptJson->m.end() && !ptJson->m["signature"]->v.empty())
     {
-      strEncodedSignature = ptJson->m["signature"]->v;
+      signature = manip.decodeBase64(ptJson->m["signature"]->v, nSignature, strSubError);
     }
-    if (!strEncodedData.empty() && !strEncodedSignature.empty() && !strID.empty())
+    if (authenticatorData != NULL && clientDataJSON != NULL && !strID.empty() && signature != NULL)
     {
-      list<string> keys;
-      Warden warden("Central", strUnix, strError);
-      keys.push_back("conf");
-      if (warden.vaultRetrieve(keys, ptConf, strError))
+      uint8_t clientHash[SHA256_DIGEST_LENGTH];
+      if (SHA256(clientDataJSON, nClientDataJSON, clientHash) != NULL)
       {
-        if (ptConf->m.find("Database") != ptConf->m.end() && !ptConf->m["Database"]->v.empty())
+        list<string> keys;
+        size_t nVerify = nAuthenticatorData + SHA256_DIGEST_LENGTH;
+        uint8_t *verify = (uint8_t *)malloc(nVerify);
+        Json *ptConf = new Json;
+        Warden warden("Central", strUnix, strError);
+        memcpy(verify, authenticatorData, nAuthenticatorData);
+        memcpy((verify + nAuthenticatorData), clientHash, SHA256_DIGEST_LENGTH);
+        keys.push_back("conf");
+        if (warden.vaultRetrieve(keys, ptConf, strError))
         {
-          if (ptConf->m.find("Database Password") != ptConf->m.end() && !ptConf->m["Database Password"]->v.empty())
+          if (ptConf->m.find("Database") != ptConf->m.end() && !ptConf->m["Database"]->v.empty())
           {
-            if (ptConf->m.find("Database Server") != ptConf->m.end() && !ptConf->m["Database Server"]->v.empty())
+            if (ptConf->m.find("Database Password") != ptConf->m.end() && !ptConf->m["Database Password"]->v.empty())
             {
-              if (ptConf->m.find("Database User") != ptConf->m.end() && !ptConf->m["Database User"]->v.empty())
+              if (ptConf->m.find("Database Server") != ptConf->m.end() && !ptConf->m["Database Server"]->v.empty())
               {
-                list<string> in, out;
-                string strValue;
-                stringstream ssQuery;
-                ServiceJunction junction(strError);
-                StringManip manip;
-                Json *ptData = new Json;
-                junction.setApplication("Warden");
-                if (!strConf.empty())
+                if (ptConf->m.find("Database User") != ptConf->m.end() && !ptConf->m["Database User"]->v.empty())
                 {
-                  junction.utility()->setConfPath(strConf, strError);
-                }
-                ptData->insert("Service", "mysql");
-                ptData->insert("User", ptConf->m["Database User"]->v);
-                ptData->insert("Password", ptConf->m["Database Password"]->v);
-                ptData->insert("Server", ptConf->m["Database Server"]->v);
-                ptData->insert("Database", ptConf->m["Database"]->v);
-                ssQuery << "select public_key from person_passkey where passkey_id = '" << manip.escape(strID, strValue) << "'";
-                ptData->insert("Query", ssQuery.str());
-                in.push_back(ptData->json(strJson));
-                delete ptData;
-                if (junction.request(in, out, strError))
-                {
-                  if (!out.empty())
+                  list<string> in, out;
+                  string strValue;
+                  stringstream ssQuery;
+                  ServiceJunction junction(strError);
+                  StringManip manip;
+                  Json *ptData = new Json;
+                  junction.setApplication("Warden");
+                  if (!strConf.empty())
                   {
-                    Json *ptStatus = new Json(out.front());
-                    if (ptStatus->m.find("Status") != ptStatus->m.end() && ptStatus->m["Status"]->v == "okay")
+                    junction.utility()->setConfPath(strConf, strError);
+                  }
+                  ptData->insert("Service", "mysql");
+                  ptData->insert("User", ptConf->m["Database User"]->v);
+                  ptData->insert("Password", ptConf->m["Database Password"]->v);
+                  ptData->insert("Server", ptConf->m["Database Server"]->v);
+                  ptData->insert("Database", ptConf->m["Database"]->v);
+                  ssQuery << "select public_key from person_passkey where passkey_id = '" << manip.escape(strID, strValue) << "'";
+                  ptData->insert("Query", ssQuery.str());
+                  in.push_back(ptData->json(strJson));
+                  delete ptData;
+                  if (junction.request(in, out, strError))
+                  {
+                    if (!out.empty())
                     {
-                      if (out.size() > 1)
+                      Json *ptStatus = new Json(out.front());
+                      if (ptStatus->m.find("Status") != ptStatus->m.end() && ptStatus->m["Status"]->v == "okay")
                       {
-                        Json *ptPersonPasskey;
-                        out.pop_front();
-                        ptPersonPasskey = new Json(out.front());
-                        if (ptPersonPasskey->m.find("public_key") != ptPersonPasskey->m.end() && !ptPersonPasskey->m["public_key"]->v.empty())
+                        if (out.size() > 1)
                         {
-                          BIO *bio;
-                          string strData, strSignature;
-                          manip.decodeBase64(strEncodedData, strData);
-                          manip.decodeBase64(strEncodedSignature, strSignature);
-                          if ((bio = BIO_new(BIO_s_mem())) != NULL)
+                          Json *ptPersonPasskey;
+                          out.pop_front();
+                          ptPersonPasskey = new Json(out.front());
+                          if (ptPersonPasskey->m.find("public_key") != ptPersonPasskey->m.end() && !ptPersonPasskey->m["public_key"]->v.empty())
                           {
-                            if (BIO_write(bio, ptPersonPasskey->m["public_key"]->v.c_str(), ptPersonPasskey->m["public_key"]->v.size()) == (ssize_t)ptPersonPasskey->m["public_key"]->v.size())
+                            BIO *bio;
+                            if ((bio = BIO_new(BIO_s_mem())) != NULL)
                             {
-                              EVP_PKEY *pkey;
-                              if ((pkey = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL)) != NULL)
+                              if (BIO_write(bio, ptPersonPasskey->m["public_key"]->v.c_str(), ptPersonPasskey->m["public_key"]->v.size()) == (ssize_t)ptPersonPasskey->m["public_key"]->v.size())
                               {
-                                EVP_MD_CTX *ctx;
-                                if ((ctx = EVP_MD_CTX_new()) != NULL)
+                                EVP_PKEY *pkey;
+                                if ((pkey = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL)) != NULL)
                                 {
-                                  if (EVP_DigestVerifyInit(ctx, NULL, EVP_sha256(), NULL, pkey) == 1)
+                                  EVP_MD_CTX *ctx;
+                                  if ((ctx = EVP_MD_CTX_new()) != NULL)
                                   {
-                                    if (EVP_DigestVerifyUpdate(ctx, (const unsigned char *)strData.c_str(), strData.size()) == 1)
+                                    if (EVP_DigestVerifyInit(ctx, NULL, EVP_sha256(), NULL, pkey) == 1)
                                     {
-                                      if (EVP_DigestVerifyFinal(ctx, (const unsigned char *)strSignature.c_str(), strSignature.size()) == 1)
+                                      if (EVP_DigestVerifyUpdate(ctx, (const unsigned char *)verify, nVerify) == 1)
                                       {
-                                        bProcessed = true;
+                                        if (EVP_DigestVerifyFinal(ctx, (const unsigned char *)signature, nSignature) == 1)
+                                        {
+                                          bProcessed = true;
+                                        }
+                                        else
+                                        {
+                                          strError = "Failed verification.";
+                                        }
                                       }
                                       else
                                       {
-                                        strError = "Failed verification.";
+                                        strError = "Failed to set data.";
                                       }
                                     }
                                     else
                                     {
-                                      strError = "Failed to set data.";
+                                      strError = "Failed to initialize verify.";
                                     }
+                                    EVP_MD_CTX_free(ctx);
                                   }
                                   else
                                   {
-                                    strError = "Failed to initialize verify.";
+                                    strError = "Failed to initialize context.";
                                   }
-                                  EVP_MD_CTX_free(ctx);
                                 }
                                 else
                                 {
-                                  strError = "Failed to initialize context.";
+                                  strError = "Failed to read public key from BIO.";
                                 }
                               }
                               else
                               {
-                                strError = "Failed to read public key from BIO.";
+                                strError = "Failed to write BIO.";
                               }
+                              BIO_free(bio);
                             }
                             else
                             {
-                              strError = "Failed to write BIO.";
+                              strError = "Failed to initialize BIO.";
                             }
-                            BIO_free(bio);
                           }
                           else
                           {
-                            strError = "Failed to initialize BIO.";
+                            strError = "Public key is empty.";
                           }
-
-                          // -7:  EC P256 (aka: ES256)
-                          // -257:  RSA
-                          /*
-                          if ((key = EVP_PKEY_new_raw_public_key(EVP_PKEY_EC, NULL, (const unsigned char *)strPublicKey.c_str(), strPublicKey.size())) != NULL)
-                          {
-                            EVP_PKEY_CTX *ctx;
-                            if ((ctx = EVP_PKEY_CTX_new(key, NULL)) != NULL)
-                            {
-                              if (EVP_PKEY_verify_init(ctx) == 1)
-                              {
-                                if (EVP_PKEY_verify(ctx, (const unsigned char *)strSignature.c_str(), strSignature.size(), (const unsigned char *)strData.c_str(), strData.size()) == 1)
-                                {
-                                  bProcessed = true;
-                                }
-                                else
-                                {
-                                  strError = "Failed verification.";
-                                }
-                              }
-                              else
-                              {
-                                strError = "Failed to initialize verify.";
-                              }
-                              EVP_PKEY_CTX_free(ctx);
-                            }
-                            else
-                            {
-                              strError = "Failed to initialize context.";
-                            }
-                            EVP_PKEY_free(key);
-                          }
-                          else
-                          {
-                            strError = "Failed to initialize public key.";
-                          }
-                          */
+                          delete ptPersonPasskey;
                         }
                         else
                         {
-                          strError = "Public key is empty.";
+                          strError = "Failed to retrieve public key.";
                         }
-                        delete ptPersonPasskey;
+                      }
+                      else if (ptStatus->m.find("Error") != ptStatus->m.end() && !ptStatus->m["Error"]->v.empty())
+                      {
+                        strError = ptStatus->m["Error"]->v;
                       }
                       else
                       {
-                        strError = "Failed to retrieve public key.";
+                        strError = "Encountered an unknown error.";
                       }
-                    }
-                    else if (ptStatus->m.find("Error") != ptStatus->m.end() && !ptStatus->m["Error"]->v.empty())
-                    {
-                      strError = ptStatus->m["Error"]->v;
+                      delete ptStatus;
                     }
                     else
                     {
-                      strError = "Encountered an unknown error.";
+                      strError = "Failed to receive a response.";
                     }
-                    delete ptStatus;
                   }
-                  else
-                  {
-                    strError = "Failed to receive a response.";
-                  }
+                  in.clear();
+                  out.clear();
                 }
-                in.clear();
-                out.clear();
+                else
+                {
+                  strError = "Please provide the Database User.";
+                }
               }
               else
               {
-                strError = "Please provide the Database User.";
+                strError = "Please provide the Database Server.";
               }
             }
             else
             {
-              strError = "Please provide the Database Server.";
+              strError = "Please provide the Database Password.";
             }
           }
           else
           {
-            strError = "Please provide the Database Password.";
+            strError = "Please provide the Database.";
           }
         }
-        else
-        {
-          strError = "Please provide the Database.";
-        }
+        delete ptConf;
+
+        free(verify);
       }
-      delete ptConf;
+      else
+      {
+        strError = "Failed to compute the SHA-256 hash.";
+      }
     }
     else
     {
@@ -284,6 +266,7 @@ int main(int argc, char *argv[])
   }
   cout << ptJson << endl;
   delete ptJson;
+  ERR_free_strings();
 
   return 0;
 }

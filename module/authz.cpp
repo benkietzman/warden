@@ -80,6 +80,10 @@ int main(int argc, char *argv[])
       {
         strUser = ptData->m["User"]->v;
       }
+      if (ptJson->m.find("Data") != ptJson->m.end())
+      {
+        delete ptJson->m["Data"];
+      }
       ptJson->m["Data"] = new Json;
       if (!ptData->m.empty())
       {

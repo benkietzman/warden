@@ -102,7 +102,7 @@ int main(int argc, char *argv[])
                 ptData->insert("Password", ptConf->m["Database Password"]->v);
                 ptData->insert("Server", ptConf->m["Database Server"]->v);
                 ptData->insert("Database", ptConf->m["Database"]->v);
-                ssQuery << "select algorithm, public_key from person_passkey where passkey_id = '" << manip.escape(strID, strValue) << "'";
+                ssQuery << "select public_key from person_passkey where passkey_id = '" << manip.escape(strID, strValue) << "'";
                 ptData->insert("Query", ssQuery.str());
                 in.push_back(ptData->json(strJson));
                 delete ptData;
@@ -120,66 +120,66 @@ int main(int argc, char *argv[])
                         ptPersonPasskey = new Json(out.front());
                         if (ptPersonPasskey->m.find("public_key") != ptPersonPasskey->m.end() && !ptPersonPasskey->m["public_key"]->v.empty())
                         {
-                          EVP_PKEY *key;
-                          string strData, strPublicKey, strSignature;
-                          manip.decodeBase64(ptPersonPasskey->m["public_key"]->v, strPublicKey);
-ptJson->i("public_key-encoded", to_string(ptPersonPasskey->m["public_key"]->v.size()), 'n');
-ptJson->i("public_key-raw", to_string(strPublicKey.size()), 'n');
+                          BIO *bio;
+                          string strData, strSignature;
                           manip.decodeBase64(strEncodedData, strData);
                           manip.decodeBase64(strEncodedSignature, strSignature);
-
-                          /**/
-                          BIO *bio;
-                          if ((bio = BIO_new_mem_buf((const unsigned char *)strPublicKey.c_str(), strPublicKey.size())) != NULL)
+                          if ((bio = BIO_new(BIO_s_mem())) != NULL)
                           {
-                            //EVP_PKEY *key;
-                            if ((key = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL)) != NULL)
+                            if (BIO_write(bio, ptPersonPasskey->m["public_key"]->v.c_str(), ptPersonPasskey->m["public_key"]->v.size()) == (ssize_t)ptPersonPasskey->m["public_key"]->v.size())
                             {
-                              EVP_MD_CTX *ctx;
-                              if ((ctx = EVP_MD_CTX_new()) != NULL)
+                              EVP_PKEY *pkey;
+                              if ((pkey = PEM_read_bio_PUBKEY(bio, NULL, NULL, NULL)) != NULL)
                               {
-                                if (EVP_DigestVerifyInit(ctx, NULL, EVP_sha256(), NULL, key) == 1)
+                                EVP_MD_CTX *ctx;
+                                if ((ctx = EVP_MD_CTX_new()) != NULL)
                                 {
-                                  if (EVP_DigestVerifyUpdate(ctx, (const unsigned char *)strData.c_str(), strData.size()) == 1)
+                                  if (EVP_DigestVerifyInit(ctx, NULL, EVP_sha256(), NULL, pkey) == 1)
                                   {
-                                    if (EVP_DigestVerifyFinal(ctx, (const unsigned char *)strSignature.c_str(), strSignature.size()) == 1)
+                                    if (EVP_DigestVerifyUpdate(ctx, (const unsigned char *)strData.c_str(), strData.size()) == 1)
                                     {
-                                      bProcessed = true;
+                                      if (EVP_DigestVerifyFinal(ctx, (const unsigned char *)strSignature.c_str(), strSignature.size()) == 1)
+                                      {
+                                        bProcessed = true;
+                                      }
+                                      else
+                                      {
+                                        strError = "Failed verification.";
+                                      }
                                     }
                                     else
                                     {
-                                      strError = "Failed verification.";
+                                      strError = "Failed to set data.";
                                     }
                                   }
                                   else
                                   {
-                                    strError = "Failed to set data.";
+                                    strError = "Failed to initialize verify.";
                                   }
+                                  EVP_MD_CTX_free(ctx);
                                 }
                                 else
                                 {
-                                  strError = "Failed to initialize verify.";
+                                  strError = "Failed to initialize context.";
                                 }
-                                EVP_MD_CTX_free(ctx);
                               }
                               else
                               {
-                                strError = "Failed to initialize context.";
+                                strError = "Failed to read public key from BIO.";
                               }
                             }
                             else
                             {
-                              strError = "Failed to read bio.";
+                              strError = "Failed to write BIO.";
                             }
                             BIO_free(bio);
                           }
                           else
                           {
-                            strError = "Failed to initialize bio.";
+                            strError = "Failed to initialize BIO.";
                           }
-                          /**/
 
-                          // -7:  EC P256
+                          // -7:  EC P256 (aka: ES256)
                           // -257:  RSA
                           /*
                           if ((key = EVP_PKEY_new_raw_public_key(EVP_PKEY_EC, NULL, (const unsigned char *)strPublicKey.c_str(), strPublicKey.size())) != NULL)

@@ -29,7 +29,8 @@ using namespace common;
 int main(int argc, char *argv[])
 {
   bool bCached = false, bProcessed = false, bUpdated = false;
-  string strConf, strDomain, strError, strJson;
+  list<string> domains;
+  string strConf, strError, strJson;
   stringstream ssMessage;
   Json *ptJson;
   Storage *pStorage = new Storage;
@@ -47,9 +48,18 @@ int main(int argc, char *argv[])
     }
     else if (strArg.size() > 9 && strArg.substr(0, 9) == "--domain=")
     {
-      strDomain = strArg.substr(9, strArg.size() - 9);
+      string strDomain = strArg.substr(9, strArg.size() - 9);
+      stringstream ssDomain;
       manip.purgeChar(strDomain, strDomain, "'");
       manip.purgeChar(strDomain, strDomain, "\"");
+      ssDomain.str(strDomain);
+      while (getline(ssDomain, strDomain, ','))
+      {
+        if (!strDomain.empty())
+        {
+          domains.push_back(strDomain);
+        }
+      }
     }
   } 
   // }}}
@@ -137,45 +147,48 @@ int main(int argc, char *argv[])
       Json *ptStore = new Json;
       ptStore->insert("_modified", ssCurrent.str(), 'n');
       ptStore->insert("Password", strPassword);
-      ptData = new Json;
       junction.setApplication("Warden");
       if (!strConf.empty())
       {
         junction.utility()->setConfPath(strConf, strError);
       }
-      ptData->insert("Service", "samba");
-      ptData->insert("Function", "login");
-      ptData->insert("User", strUser);
-      ptData->insert("Password", strPassword);
-      ptData->insert("Domain", strDomain);
-      in.push_back(ptData->json(strJson));
-      delete ptData;
-      if (junction.request(in, out, strError))
+      for (auto i = domains.begin(); !bProcessed && i != domains.end(); i++)
       {
-        if (!out.empty())
+        ptData = new Json;
+        ptData->insert("Service", "samba");
+        ptData->insert("Function", "login");
+        ptData->insert("User", strUser);
+        ptData->insert("Password", strPassword);
+        ptData->insert("Domain", (*i));
+        in.push_back(ptData->json(strJson));
+        delete ptData;
+        if (junction.request(in, out, strError))
         {
-          Json *ptStatus = new Json(out.front());
-          if (ptStatus->m.find("Status") != ptStatus->m.end() && ptStatus->m["Status"]->v == "okay")
+          if (!out.empty())
           {
-            bProcessed = true;
-          }
-          else if (ptStatus->m.find("Error") != ptStatus->m.end() && !ptStatus->m["Error"]->v.empty())
-          {
-            strError = ptStatus->m["Error"]->v;
+            Json *ptStatus = new Json(out.front());
+            if (ptStatus->m.find("Status") != ptStatus->m.end() && ptStatus->m["Status"]->v == "okay")
+            {
+              bProcessed = true;
+            }
+            else if (ptStatus->m.find("Error") != ptStatus->m.end() && !ptStatus->m["Error"]->v.empty())
+            {
+              strError = ptStatus->m["Error"]->v;
+            }
+            else
+            {
+              strError = "Encountered an unknown error.";
+            }
+            delete ptStatus;
           }
           else
           {
-            strError = "Encountered an unknown error.";
+            strError = "Failed to receive a response.";
           }
-          delete ptStatus;
         }
-        else
-        {
-          strError = "Failed to receive a response.";
-        }
+        in.clear();
+        out.clear();
       }
-      in.clear();
-      out.clear();
       ptStore->insert("Status", ((bProcessed)?"okay":"error"));
       if (!strError.empty())
       {

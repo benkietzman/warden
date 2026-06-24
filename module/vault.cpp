@@ -292,6 +292,7 @@ int main(int argc, char *argv[])
                   strError = ssMessage.str();
                 }
                 outCipher.close();
+                chmod(strCipherPath.c_str(), (S_IRUSR | S_IWUSR));
               }
               file.remove(strCipherReplacePath);
             }

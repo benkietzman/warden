@@ -31,7 +31,7 @@ using namespace common;
 int main(int argc, char *argv[])
 {
   bool bProcessed = false, bUpdated = false;
-  string strAes, strConf, strData = "/data/warden/vault", strError, strJson, strLock, strVault;
+  string strCipherPath, strCipherRenamePath, strConf, strData = "/data/warden/vault", strError, strJson, strLock, strSecretPath, strVault;
   stringstream ssMessage;
   File file;
   Json *ptJson;
@@ -69,14 +69,16 @@ int main(int argc, char *argv[])
     strError.clear();
     utility.setConfPath(strConf, strError);
   }
-  strAes = strData + "/.secret";
+  strCipherPath = strData + "/.cipher";
+  strCipherRenamePath = strData + "/.cipher_rename";
   strLock = strData + "/.lock";
+  strSecretPath = strData + "/.secret";
   strVault = strData + "/storage";
   if (getline(cin, strJson))
   {
     bool bLoad = true;
     list<string> keys;
-    string strSecret, strSubError;
+    string strCipher, strSecret, strSubError;
     Json *ptData;
     ptJson = new Json(strJson);
     // {{{ load cache
@@ -85,6 +87,32 @@ int main(int argc, char *argv[])
       pStorage->put(ptJson->m["_storage"]);
       delete ptJson->m["_storage"];
       ptJson->m.erase("_storage");
+    }
+    // }}}
+    // {{{ load cipher
+    ptData = new Json;
+    keys.push_back("_cipher");
+    if (pStorage->retrieve(keys, ptData, strSubError) && !ptData->v.empty())
+    {
+      strCipher = ptData->v;
+    }
+    delete ptData;
+    keys.clear();
+    if (strCipher.empty())
+    {
+      ifstream inCipher;
+      inCipher.open(strCipherPath);
+      if (inCipher)
+      {
+        inCipher >> strCipher;
+      }
+      else
+      {
+        ssMessage.str("");
+        ssMessage << "ifstream::open(cipher," << errno << ") " << strerror(errno);
+        strError = ssMessage.str();
+      }
+      inCipher.close();
     }
     // }}}
     // {{{ load secret
@@ -98,19 +126,19 @@ int main(int argc, char *argv[])
     keys.clear();
     if (strSecret.empty())
     {
-      ifstream inAes;
-      inAes.open(strAes);
-      if (inAes)
+      ifstream inSecret;
+      inSecret.open(strSecretPath);
+      if (inSecret)
       {
-        inAes >> strSecret;
+        inSecret >> strSecret;
       }
       else
       {
         ssMessage.str("");
-        ssMessage << "ifstream::open(aes," << errno << ") " << strerror(errno);
+        ssMessage << "ifstream::open(secret," << errno << ") " << strerror(errno);
         strError = ssMessage.str();
       }
-      inAes.close();
+      inSecret.close();
     }
     // }}}
     // {{{ load modified
@@ -143,12 +171,16 @@ int main(int argc, char *argv[])
           string strDecrypted;
           stringstream ssEncrypted;
           ssEncrypted << inVault.rdbuf();
-          if (!manip.decryptAes(ssEncrypted.str(), strSecret, strDecrypted, strError).empty())
+          if (!manip.decryptAes(ssEncrypted.str(), strSecret, strDecrypted, strError, strCipher).empty())
           {
             stringstream ssModified;
             Json *ptVault = new Json(strDecrypted);
             bUpdated = true;
             ssModified << tStat.st_mtime;
+            if (!strCipher.empty())
+            {
+              ptVault->insert("_cipher", strCipher);
+            }
             ptVault->insert("_modified", ssModified.str(), 'n');
             ptVault->insert("_secret", strSecret);
             pStorage->put(ptVault);
@@ -156,36 +188,9 @@ int main(int argc, char *argv[])
           }
           else
           {
-            ifstream inAes;
-            inAes.open(strAes);
-            if (inAes)
-            {
-              inAes >> strSecret;
-              if (!manip.decryptAes(ssEncrypted.str(), strSecret, strDecrypted, strError).empty())
-              {
-                stringstream ssModified;
-                Json *ptVault = new Json(strDecrypted);
-                bUpdated = true;
-                ssModified << tStat.st_mtime;
-                ptVault->insert("_modified", ssModified.str(), 'n');
-                ptVault->insert("_secret", strSecret);
-                pStorage->put(ptVault);
-                delete ptVault;
-              }
-              else
-              {
-                ssMessage.str("");
-                ssMessage << "StringManip::decryptAes() " << strError;
-                strError = ssMessage.str();
-              }
-            }
-            else
-            {
-              ssMessage.str("");
-              ssMessage << "ifstream::open(aes," << errno << ") " << strerror(errno);
-              strError = ssMessage.str();
-            }
-            inAes.close();
+            ssMessage.str("");
+            ssMessage << "StringManip::decryptAes() " << strError;
+            strError = ssMessage.str();
           }
         }
         else
@@ -224,8 +229,15 @@ int main(int argc, char *argv[])
           bProcessed = true;
           if (!strSecret.empty())
           {
+            ifstream inCipherReplace;
+            ofstream outLock;
             string strEncrypted, strDecrypted;
             Json *ptVault = pStorage->get();
+            if (ptVault->m.find("_cipher") != ptVault->m.end())
+            {
+              delete ptVault->m["_cipher"];
+              ptVault->m.erase("_cipher");
+            }
             if (ptVault->m.find("_modified") != ptVault->m.end())
             {
               delete ptVault->m["_modified"];
@@ -238,15 +250,54 @@ int main(int argc, char *argv[])
             }
             ptVault->json(strDecrypted);
             delete ptVault;
-            if (!manip.encryptAes(strDecrypted, strSecret, strEncrypted, strError).empty())
+            while (file.fileExist(strLock))
             {
-              ofstream outLock, outVault;
-              while (file.fileExist(strLock))
+              utility.msleep(250);
+            }
+            outLock.open(strLock.c_str());
+            outLock.close();
+            if (file.fileExist(strCipherRenamePath))
+            {
+              ifstream inCipherRename;
+              string strCipherRename;
+              inCipherRename.open(strCipherRenamePath);
+              if (inCipherRename)
               {
-                utility.msleep(250);
+                inCipherRename >> strCipherRename;
               }
-              outLock.open(strLock.c_str());
-              outLock.close();
+              else
+              {
+                ssMessage.str("");
+                ssMessage << "ifstream::open(cipher_rename," << errno << ") " << strerror(errno);
+                strError = ssMessage.str();
+              }
+              inCipherRename.close();
+              if (!strCipherRename.empty() && strCipherRename != strCipher)
+              {
+                ofstream outCipher;
+                outCipher.open(strCipherPath);
+                if (outCipher)
+                {
+                  Json *ptVault = pStorage->get();
+                  strCipher = strCipherRename;
+                  outCipher << strCipher;
+                  ptVault->insert("_cipher", strCipher);
+                  pStorage->put(ptVault);
+                  delete ptVault;
+                }
+                else
+                {
+                  ssMessage.str("");
+                  ssMessage << "ofstream::open(cipher," << errno << ") " << strerror(errno);
+                  strError = ssMessage.str();
+                }
+                outCipher.close();
+              }
+              file.remove(strCipherRenamePath);
+            }
+            if (!manip.encryptAes(strDecrypted, strSecret, strEncrypted, strError, strCipher).empty())
+            {
+              ofstream outVault;
               outVault.open(strVault);
               if (outVault)
               {
@@ -260,8 +311,8 @@ int main(int argc, char *argv[])
                 strError = ssMessage.str();
               }
               outVault.close();
-              file.remove(strLock);
             }
+            file.remove(strLock);
           }
         }
         if (ptData != NULL)
@@ -279,6 +330,11 @@ int main(int argc, char *argv[])
           bProcessed = true;
           if (keys.empty())
           {
+            if (ptData->m.find("_cipher") != ptData->m.end())
+            {
+              delete ptData->m["_cipher"];
+              ptData->m.erase("_cipher");
+            }
             if (ptData->m.find("_modified") != ptData->m.end())
             {
               delete ptData->m["_modified"];

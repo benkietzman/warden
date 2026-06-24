@@ -31,7 +31,7 @@ using namespace common;
 int main(int argc, char *argv[])
 {
   bool bProcessed = false, bUpdated = false;
-  string strCipherPath, strCipherRenamePath, strConf, strData = "/data/warden/vault", strError, strJson, strLock, strSecretPath, strVault;
+  string strCipherPath, strCipherReplacePath, strConf, strData = "/data/warden/vault", strError, strJson, strLock, strSecretPath, strVault;
   stringstream ssMessage;
   File file;
   Json *ptJson;
@@ -70,7 +70,7 @@ int main(int argc, char *argv[])
     utility.setConfPath(strConf, strError);
   }
   strCipherPath = strData + "/.cipher";
-  strCipherRenamePath = strData + "/.cipher_rename";
+  strCipherReplacePath = strData + "/.cipher_replace";
   strLock = strData + "/.lock";
   strSecretPath = strData + "/.secret";
   strVault = strData + "/storage";
@@ -256,30 +256,30 @@ int main(int argc, char *argv[])
             }
             outLock.open(strLock.c_str());
             outLock.close();
-            if (file.fileExist(strCipherRenamePath))
+            if (file.fileExist(strCipherReplacePath))
             {
-              ifstream inCipherRename;
-              string strCipherRename;
-              inCipherRename.open(strCipherRenamePath);
-              if (inCipherRename)
+              ifstream inCipherReplace;
+              string strCipherReplace;
+              inCipherReplace.open(strCipherReplacePath);
+              if (inCipherReplace)
               {
-                inCipherRename >> strCipherRename;
+                inCipherReplace >> strCipherReplace;
               }
               else
               {
                 ssMessage.str("");
-                ssMessage << "ifstream::open(cipher_rename," << errno << ") " << strerror(errno);
+                ssMessage << "ifstream::open(cipher_replace," << errno << ") " << strerror(errno);
                 strError = ssMessage.str();
               }
-              inCipherRename.close();
-              if (!strCipherRename.empty() && strCipherRename != strCipher)
+              inCipherReplace.close();
+              if (!strCipherReplace.empty() && strCipherReplace != strCipher)
               {
                 ofstream outCipher;
                 outCipher.open(strCipherPath);
                 if (outCipher)
                 {
                   Json *ptVault = pStorage->get();
-                  strCipher = strCipherRename;
+                  strCipher = strCipherReplace;
                   outCipher << strCipher;
                   ptVault->insert("_cipher", strCipher);
                   pStorage->put(ptVault);
@@ -293,7 +293,7 @@ int main(int argc, char *argv[])
                 }
                 outCipher.close();
               }
-              file.remove(strCipherRenamePath);
+              file.remove(strCipherReplacePath);
             }
             if (!manip.encryptAes(strDecrypted, strSecret, strEncrypted, strError, strCipher).empty())
             {

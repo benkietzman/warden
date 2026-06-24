@@ -104,7 +104,7 @@ int main(int argc, char *argv[])
       inCipher.open(strCipherPath);
       if (inCipher)
       {
-        inCipher >> strCipher;
+        getline(inCipher, strCipher);
       }
       else
       {
@@ -263,7 +263,7 @@ int main(int argc, char *argv[])
               inCipherReplace.open(strCipherReplacePath);
               if (inCipherReplace)
               {
-                inCipherReplace >> strCipherReplace;
+                getline(inCipherReplace, strCipherReplace);
               }
               else
               {

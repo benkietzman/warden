@@ -280,7 +280,7 @@ int main(int argc, char *argv[])
                 {
                   Json *ptVault = pStorage->get();
                   strCipher = strCipherReplace;
-                  outCipher << strCipher;
+                  outCipher << strCipher << endl;
                   ptVault->insert("_cipher", strCipher);
                   pStorage->put(ptVault);
                   delete ptVault;

@@ -804,6 +804,7 @@ int main(int argc, char *argv[])
                         while ((unPosition = clients[fds[i].fd][0].find("\n")) != string::npos)
                         {
                           bool bProcessed = false;
+                          stringstream ssJson;
                           Json *ptJson = new Json(clients[fds[i].fd][0].substr(0, unPosition));
                           clients[fds[i].fd][0].erase(0, (unPosition + 1));
                           strError.clear();
@@ -829,10 +830,16 @@ int main(int argc, char *argv[])
                             if (pStorage->request(ptJson->m["Action"]->v, keys, ptData, strError))
                             {
                               bProcessed = true;
-                              ptJson->insert("Data", ptData);
+                              if (ptJson->m.find("Data") != ptJson->m.end())
+                              {
+                                delete ptJson->m["Data"];
+                              }
+                              ptJson->m["Data"] = ptData;
                             }
-                            keys.clear();
-                            delete ptData;
+                            else
+                            {
+                              delete ptData;
+                            }
                           }
                           else
                           {
@@ -843,8 +850,10 @@ int main(int argc, char *argv[])
                           {
                             ptJson->insert("Error", strError);
                           }
-                          clients[fds[i].fd][1].append(ptJson->json(strJson)+"\n");
+                          ssJson << ptJson << endl;
                           delete ptJson;
+                          strJson = ssJson.str();
+                          clients[fds[i].fd][1].append(strJson);
                         }
                       }
                       else

@@ -811,7 +811,6 @@ int main(int argc, char *argv[])
                           if (ptJson->m.find("Action") != ptJson->m.end() && !ptJson->m["Action"]->v.empty())
                           {
                             list<string> keys;
-                            Json *ptData;
                             if (ptJson->m.find("Keys") != ptJson->m.end())
                             {
                               for (list<Json *>::iterator j = ptJson->m["Keys"]->l.begin(); j != ptJson->m["Keys"]->l.end(); j++)
@@ -819,26 +818,13 @@ int main(int argc, char *argv[])
                                 keys.push_back((*j)->v);
                               }
                             }
-                            if (ptJson->m.find("Data") != ptJson->m.end())
+                            if (ptJson->m.find("Data") == ptJson->m.end())
                             {
-                              ptData = new Json(ptJson->m["Data"]);
+                              ptJson->m["Data"] = new Json;
                             }
-                            else
-                            {
-                              ptData = new Json;
-                            }
-                            if (pStorage->request(ptJson->m["Action"]->v, keys, ptData, strError))
+                            if (pStorage->request(ptJson->m["Action"]->v, keys, ptJson->m["Data"], strError))
                             {
                               bProcessed = true;
-                              if (ptJson->m.find("Data") != ptJson->m.end())
-                              {
-                                delete ptJson->m["Data"];
-                              }
-                              ptJson->m["Data"] = ptData;
-                            }
-                            else
-                            {
-                              delete ptData;
                             }
                           }
                           else

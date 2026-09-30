@@ -26,7 +26,7 @@ install: bin/authn bin/authz bin/bridge bin/central bin/passkey bin/password bin
 authn: bin/authn $(prefix)/warden/module
 	install --mode=775 bin/authn $(prefix)/warden/module/
 bin/authn: ../../common/libcommon.a obj/authn.o bin 
-	g++ -o bin/authn obj/authn.o $(LDFLAGS) -L../../common -lcommon -lb64 -lcrypto -lexpat -lmjson -lpthread -lssl -ltar -lz
+	g++ -o bin/authn obj/authn.o $(LDFLAGS) -L../../common -lcommon -lb64 -lcrypto -lexpat -lmjson -lpthread -lssl -lz
 obj/authn.o: authn.cpp obj ../../common/Makefile
 	g++ -g -Wall -c authn.cpp -o obj/authn.o $(CPPFLAGS) -I../../common;
 # }}}
@@ -34,7 +34,7 @@ obj/authn.o: authn.cpp obj ../../common/Makefile
 authz: bin/authz $(prefix)/warden/module
 	install --mode=775 bin/authz $(prefix)/warden/module/
 bin/authz: ../../common/libcommon.a obj/authz.o bin
-	g++ -o bin/authz obj/authz.o $(LDFLAGS) -L../../common -lcommon -lb64 -lcrypto -lexpat -lmjson -lpthread -lssl -ltar -lz
+	g++ -o bin/authz obj/authz.o $(LDFLAGS) -L../../common -lcommon -lb64 -lcrypto -lexpat -lmjson -lpthread -lssl -lz
 obj/authz.o: authz.cpp obj ../../common/Makefile
 	g++ -g -Wall -c authz.cpp -o obj/authz.o $(CPPFLAGS) -I../../common;
 # }}}
@@ -42,7 +42,7 @@ obj/authz.o: authz.cpp obj ../../common/Makefile
 bridge: bin/bridge $(prefix)/warden/module
 	install --mode=775 bin/bridge $(prefix)/warden/module/
 bin/bridge: ../../common/libcommon.a obj/bridge.o bin
-	g++ -o bin/bridge obj/bridge.o $(LDFLAGS) -L../../common -lcommon -lb64 -lcrypto -lexpat -lmjson -lpthread -lssl -ltar -lz
+	g++ -o bin/bridge obj/bridge.o $(LDFLAGS) -L../../common -lcommon -lb64 -lcrypto -lexpat -lmjson -lpthread -lssl -lz
 obj/bridge.o: bridge.cpp obj ../../common/Makefile
 	g++ -g -Wall -c bridge.cpp -o obj/bridge.o $(CPPFLAGS) -I../../common;
 # }}}
@@ -50,7 +50,7 @@ obj/bridge.o: bridge.cpp obj ../../common/Makefile
 central: bin/central $(prefix)/warden/module
 	install --mode=775 bin/central $(prefix)/warden/module/
 bin/central: ../../common/libcommon.a obj/central.o bin
-	g++ -o bin/central obj/central.o $(LDFLAGS) -L../../common -lcommon -lb64 -lcrypto -lexpat -lmjson -lpthread -lssl -ltar -lz
+	g++ -o bin/central obj/central.o $(LDFLAGS) -L../../common -lcommon -lb64 -lcrypto -lexpat -lmjson -lpthread -lssl -lz
 obj/central.o: central.cpp obj ../../common/Makefile
 	g++ -g -Wall -c central.cpp -o obj/central.o $(CPPFLAGS) -I../../common;
 # }}}
@@ -58,7 +58,7 @@ obj/central.o: central.cpp obj ../../common/Makefile
 passkey: bin/passkey $(prefix)/warden/module
 	install --mode=775 bin/passkey $(prefix)/warden/module/
 bin/passkey: ../../common/libcommon.a obj/passkey.o bin
-	g++ -o bin/passkey obj/passkey.o $(LDFLAGS) -L../../common -lcommon -lb64 -lcrypto -lexpat -lmjson -lpthread -lssl -ltar -lz
+	g++ -o bin/passkey obj/passkey.o $(LDFLAGS) -L../../common -lcommon -lb64 -lcrypto -lexpat -lmjson -lpthread -lssl -lz
 obj/passkey.o: passkey.cpp obj ../../common/Makefile
 	g++ -g -Wall -c passkey.cpp -o obj/passkey.o $(CPPFLAGS) -I../../common;
 # }}}
@@ -66,7 +66,7 @@ obj/passkey.o: passkey.cpp obj ../../common/Makefile
 password: bin/password $(prefix)/warden/module
 	install --mode=775 bin/password $(prefix)/warden/module/
 bin/password: ../../common/libcommon.a obj/password.o bin
-	g++ -o bin/password obj/password.o $(LDFLAGS) -L../../common -lcommon -lb64 -lcrypto -lexpat -lmjson -lpthread -lssl -ltar -lz
+	g++ -o bin/password obj/password.o $(LDFLAGS) -L../../common -lcommon -lb64 -lcrypto -lexpat -lmjson -lpthread -lssl -lz
 obj/password.o: password.cpp obj ../../common/Makefile
 	g++ -g -Wall -c password.cpp -o obj/password.o $(CPPFLAGS) -I../../common;
 # }}}
@@ -74,7 +74,7 @@ obj/password.o: password.cpp obj ../../common/Makefile
 radial: bin/radial $(prefix)/warden/module
 	install --mode=775 bin/radial $(prefix)/warden/module/
 bin/radial: ../../common/libcommon.a obj/radial.o bin
-	g++ -o bin/radial obj/radial.o $(LDFLAGS) -L../../common -lcommon -lb64 -lcrypto -lexpat -lmjson -lpthread -lssl -ltar -lz
+	g++ -o bin/radial obj/radial.o $(LDFLAGS) -L../../common -lcommon -lb64 -lcrypto -lexpat -lmjson -lpthread -lssl -lz
 obj/radial.o: radial.cpp obj ../../common/Makefile
 	g++ -g -Wall -c radial.cpp -o obj/radial.o $(CPPFLAGS) -I../../common;
 # }}}
@@ -82,7 +82,7 @@ obj/radial.o: radial.cpp obj ../../common/Makefile
 vault: bin/vault $(prefix)/warden/module
 	install --mode=775 bin/vault $(prefix)/warden/module/
 bin/vault: ../../common/libcommon.a obj/vault.o bin
-	g++ -o bin/vault obj/vault.o $(LDFLAGS) -L../../common -lcommon -lb64 -lcrypto -lexpat -lmjson -lpthread -lssl -ltar -lz
+	g++ -o bin/vault obj/vault.o $(LDFLAGS) -L../../common -lcommon -lb64 -lcrypto -lexpat -lmjson -lpthread -lssl -lz
 obj/vault.o: vault.cpp obj ../../common/Makefile
 	g++ -g -Wall -c vault.cpp -o obj/vault.o $(CPPFLAGS) -I../../common;
 # }}}
@@ -90,7 +90,7 @@ obj/vault.o: vault.cpp obj ../../common/Makefile
 windows: bin/windows $(prefix)/warden/module
 	install --mode=775 bin/windows $(prefix)/warden/module/
 bin/windows: ../../common/libcommon.a obj/windows.o bin
-	g++ -o bin/windows obj/windows.o $(LDFLAGS) -L../../common -lcommon -lb64 -lcrypto -lexpat -lmjson -lpthread -lssl -ltar -lz
+	g++ -o bin/windows obj/windows.o $(LDFLAGS) -L../../common -lcommon -lb64 -lcrypto -lexpat -lmjson -lpthread -lssl -lz
 obj/windows.o: windows.cpp obj ../../common/Makefile
 	g++ -g -Wall -c windows.cpp -o obj/windows.o $(CPPFLAGS) -I../../common;
 # }}}
